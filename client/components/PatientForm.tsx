@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,11 @@ import {
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
+  usePatients,
+  type PatientData,
+  type FamilyMember,
+} from "@/context/PatientContext";
+import {
   Users,
   MapPin,
   Heart,
@@ -27,175 +33,66 @@ import {
   Upload,
 } from "lucide-react";
 
-interface FamilyMember {
-  id: string;
-  type: string;
-  name: string;
-  age: string;
-  sex: string;
-  relation: string;
-  maritalStatus: string;
-  occupation: string;
-  income: string;
-  chronicDisease: string;
-  treatmentCompliance: string;
-}
-
-interface PatientFormData {
-  // Family Details
-  headOfFamily: string;
-  patientName: string;
-  patientId: string;
-
-  // Complete Address
-  country: string;
-  state: string;
-  district: string;
-  block: string;
-  village: string;
-  location: string;
-  panchayat: string;
-  wardNo: string;
-  pinCode: string;
-
-  // Health Seeking Behaviour
-  minorIllnessLocation: string;
-  majorIllnessLocation: string;
-  systemOfMedicine: string;
-  familyMembers: string;
-  familyIncome: string;
-  familyType: string;
-  religion: string;
-  caste: string;
-  rationCardType: string;
-  ayushmanCard: boolean;
-
-  // Patient Disease Summary
-  disease: string;
-  diseaseSummary: string;
-  symptoms: string;
-  treatmentCompliance: string;
-  currentMedication: string;
-
-  // Patient Personal Info
-  mobile: string;
-  height: string;
-  weight: string;
-  bmi: string;
-  education: string;
-  occupation: string;
-  maritalStatus: string;
-
-  // Lifestyle & History
-  tobacco: boolean;
-  alcohol: boolean;
-  drugAddiction: string;
-  familyHistory: string;
-  otherChronicDiseases: string;
-  hospitalHistory: string;
-
-  // Investigation
-  systolicBP: string;
-  diastolicBP: string;
-  bpDate: string;
-  bloodSugarRBS: string;
-  bloodSugarFBS: string;
-  bloodSugarPP: string;
-}
-
 export function PatientForm() {
-  const [formData, setFormData] = useState<PatientFormData>({
-    headOfFamily: "Mohan Ram",
-    patientName: "Mohan Ram",
-    patientId: "109590",
-    country: "India",
-    state: "Bihar",
-    district: "Patna",
-    block: "Danapur",
-    village: "Gora Bazar",
-    location: "Urban",
+  const navigate = useNavigate();
+  const { addPatient } = usePatients();
+
+  const [formData, setFormData] = useState<
+    Omit<PatientData, "familyComposition" | "createdAt" | "status">
+  >({
+    headOfFamily: "",
+    patientName: "",
+    patientId: "",
+    country: "",
+    state: "",
+    district: "",
+    block: "",
+    village: "",
+    location: "",
     panchayat: "",
-    wardNo: "12",
-    pinCode: "801503",
-    minorIllnessLocation: "Primary Health Center",
-    majorIllnessLocation: "District Hospital",
-    systemOfMedicine: "Allopath",
-    familyMembers: "7",
-    familyIncome: "15000",
-    familyType: "Joint",
-    religion: "Hindu",
-    caste: "SC/ST",
-    rationCardType: "Antyodaya",
-    ayushmanCard: true,
-    disease: "HTN",
-    diseaseSummary: "Hypertension diagnosed 2 years ago",
-    symptoms: "Weakness, Vertigo",
-    treatmentCompliance: "Good",
-    currentMedication: "Telmisartan 40mg + Amlodipine 5mg",
-    mobile: "+91 98765 43210",
-    height: "165",
-    weight: "68",
-    bmi: "24.8",
-    education: "Primary School",
-    occupation: "Daily Labor",
-    maritalStatus: "Married",
-    tobacco: true,
+    wardNo: "",
+    pinCode: "",
+    minorIllnessLocation: "",
+    majorIllnessLocation: "",
+    systemOfMedicine: "",
+    familyMembers: "",
+    familyIncome: "",
+    familyType: "",
+    religion: "",
+    caste: "",
+    rationCardType: "",
+    ayushmanCard: false,
+    disease: "",
+    diseaseSummary: "",
+    symptoms: "",
+    treatmentCompliance: "",
+    currentMedication: "",
+    mobile: "",
+    height: "",
+    weight: "",
+    bmi: "",
+    education: "",
+    occupation: "",
+    maritalStatus: "",
+    tobacco: false,
     alcohol: false,
-    drugAddiction: "None",
-    familyHistory: "Father had diabetes",
-    otherChronicDiseases: "Arthritis",
-    hospitalHistory: "None",
-    systolicBP: "140",
-    diastolicBP: "85",
-    bpDate: "2024-01-15",
-    bloodSugarRBS: "130",
+    drugAddiction: "",
+    familyHistory: "",
+    otherChronicDiseases: "",
+    hospitalHistory: "",
+    systolicBP: "",
+    diastolicBP: "",
+    bpDate: "",
+    bloodSugarRBS: "",
     bloodSugarFBS: "",
     bloodSugarPP: "",
   });
 
-  const [familyComposition, setFamilyComposition] = useState<FamilyMember[]>([
-    {
-      id: "1",
-      type: "Adult",
-      name: "Mohan Ram",
-      age: "45",
-      sex: "M",
-      relation: "Self",
-      maritalStatus: "Married",
-      occupation: "Daily Labor",
-      income: "8000",
-      chronicDisease: "HTN",
-      treatmentCompliance: "Good",
-    },
-    {
-      id: "2",
-      type: "Adult",
-      name: "Sunita Devi",
-      age: "40",
-      sex: "F",
-      relation: "Wife",
-      maritalStatus: "Married",
-      occupation: "Housewife",
-      income: "0",
-      chronicDisease: "None",
-      treatmentCompliance: "N/A",
-    },
-    {
-      id: "3",
-      type: "Young Adult",
-      name: "Rajesh Kumar",
-      age: "22",
-      sex: "M",
-      relation: "Son",
-      maritalStatus: "Unmarried",
-      occupation: "Student",
-      income: "0",
-      chronicDisease: "None",
-      treatmentCompliance: "N/A",
-    },
-  ]);
+  const [familyComposition, setFamilyComposition] = useState<FamilyMember[]>(
+    [],
+  );
 
-  const updateFormData = (field: keyof PatientFormData, value: any) => {
+  const updateFormData = (field: keyof typeof formData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -233,12 +130,76 @@ export function PatientForm() {
   };
 
   const handleSave = () => {
-    console.log("Saving patient data:", { formData, familyComposition });
-    // Here you would typically send the data to your backend
+    // Ensure unique patient ID if not already set or if it's the default
+    const uniquePatientId =
+      formData.patientId === `${Date.now()}` || !formData.patientId
+        ? `PT${Date.now()}`
+        : formData.patientId;
+
+    const patientData: PatientData = {
+      ...formData,
+      patientId: uniquePatientId,
+      familyComposition,
+      createdAt: new Date().toISOString().split("T")[0],
+      status: "active",
+    };
+
+    addPatient(patientData);
+
+    // Show success message and navigate to patient list
+    alert("Patient information saved successfully!");
+    navigate("/patients");
   };
 
   const handlePrint = () => {
-    window.print();
+    // Create print-specific styles
+    const printStyles = `
+      <style>
+        @media print {
+          body * { visibility: hidden; }
+          .print-content, .print-content * { visibility: visible; }
+          .print-content { position: absolute; left: 0; top: 0; width: 100%; }
+          .no-print { display: none !important; }
+          .page-break { page-break-before: always; }
+          .card { border: 1px solid #ccc; margin-bottom: 20px; break-inside: avoid; }
+          .card-header { background-color: #f5f5f5; padding: 10px; font-weight: bold; }
+          .card-content { padding: 15px; }
+          .grid { display: flex; flex-wrap: wrap; gap: 15px; }
+          .grid > div { flex: 1; min-width: 200px; }
+          table { width: 100%; border-collapse: collapse; }
+          th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+          th { background-color: #f5f5f5; }
+        }
+      </style>
+    `;
+
+    // Get the form content
+    const formContent =
+      document.querySelector(".print-content")?.innerHTML || "";
+
+    // Create print window
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Patient Information - ${formData.patientName}</title>
+            ${printStyles}
+          </head>
+          <body>
+            <div class="print-content">
+              <h1>Patient Information Form</h1>
+              <p><strong>Generated on:</strong> ${new Date().toLocaleDateString()}</p>
+              ${formContent}
+            </div>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      printWindow.print();
+      printWindow.close();
+    }
   };
 
   return (

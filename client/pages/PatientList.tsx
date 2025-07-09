@@ -1,9 +1,11 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Sidebar } from "@/components/Sidebar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { usePatients } from "@/context/PatientContext";
 import {
   Users,
   Search,
@@ -14,110 +16,24 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  Edit,
+  Trash2,
 } from "lucide-react";
 
-interface Patient {
-  id: string;
-  date: string;
-  name: string;
-  address: string;
-  disease: string;
-  status: "active" | "follow-up" | "completed";
-}
-
-const patients: Patient[] = [
-  {
-    id: "109590",
-    date: "24/04/2024",
-    name: "Mohan ram",
-    address: "Gora Bazar, Danapur, Patna, Bihar",
-    disease: "Old case of HTN",
-    status: "active",
-  },
-  {
-    id: "109591",
-    date: "23/04/2024",
-    name: "Sunita Devi",
-    address: "Gora Bazar, Danapur, Patna, Bihar",
-    disease: "Diabetes",
-    status: "follow-up",
-  },
-  {
-    id: "109592",
-    date: "23/04/2024",
-    name: "Ranjeet choudhary",
-    address: "Gora Bazar, Danapur, Patna, Bihar",
-    disease: "HTN",
-    status: "active",
-  },
-  {
-    id: "109593",
-    date: "23/04/2024",
-    name: "S N Upadhyaya",
-    address: "Gora Bazar, Danapur, Patna, Bihar",
-    disease: "Hypertension",
-    status: "completed",
-  },
-  {
-    id: "109594",
-    date: "23/04/2024",
-    name: "Meghasum",
-    address: "Gora Bazar, Danapur-Cum-Khagaul, Patna, Bihar",
-    disease: "New case of HTN",
-    status: "active",
-  },
-  {
-    id: "109595",
-    date: "23/04/2024",
-    name: "Shiv shankar prasad",
-    address: "Gora Bazar, Danapur-Cum-Khagaul, Patna, Bihar",
-    disease: "New case of HTN",
-    status: "follow-up",
-  },
-  {
-    id: "109596",
-    date: "23/04/2024",
-    name: "Amiyaesh",
-    address: "Gora Bazar, Danapur-Cum-Khagaul, Patna, Bihar",
-    disease: "New case of HTN",
-    status: "active",
-  },
-  {
-    id: "109597",
-    date: "23/04/2024",
-    name: "Dilip kumar",
-    address: "Gora Bazar, Danapur-Cum-Khagaul, Patna, Bihar",
-    disease: "New case of Diabetes",
-    status: "active",
-  },
-  {
-    id: "109598",
-    date: "23/04/2024",
-    name: "Ganesh sahani",
-    address: "Gora Bazar, Danapur-Cum-Khagaul, Patna, Bihar",
-    disease: "New case of HTN",
-    status: "follow-up",
-  },
-  {
-    id: "109599",
-    date: "26/04/2023",
-    name: "Ashok kumar Upadhyaya",
-    address: "Gora Bazar, Danapur-Cum-Khagaul, Patna, Bihar",
-    disease: "Old case of Diabetes",
-    status: "completed",
-  },
-];
-
 export default function PatientList() {
+  const navigate = useNavigate();
+  const { patients, deletePatient } = usePatients();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
   const filteredPatients = patients.filter(
     (patient) =>
-      patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      patient.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       patient.disease.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.address.toLowerCase().includes(searchTerm.toLowerCase()),
+      `${patient.village}, ${patient.district}, ${patient.state}`
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()),
   );
 
   const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
@@ -137,6 +53,19 @@ export default function PatientList() {
         return "bg-green-100 text-green-800 hover:bg-green-200";
       default:
         return "bg-gray-100 text-gray-800 hover:bg-gray-200";
+    }
+  };
+
+  const handleEdit = (patientId: string) => {
+    // Navigate to form with patient ID for editing
+    navigate(`/?edit=${patientId}`);
+  };
+
+  const handleDelete = (patientId: string, patientName: string) => {
+    if (
+      window.confirm(`Are you sure you want to delete patient ${patientName}?`)
+    ) {
+      deletePatient(patientId);
     }
   };
 
@@ -209,29 +138,33 @@ export default function PatientList() {
                         <th className="text-left py-4 px-6 font-medium text-muted-foreground text-sm">
                           FOLLOW
                         </th>
+                        <th className="text-left py-4 px-6 font-medium text-muted-foreground text-sm">
+                          ACTIONS
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {currentPatients.map((patient, index) => (
                         <tr
-                          key={patient.id}
+                          key={`${patient.patientId}-${index}`}
                           className="border-b border-border hover:bg-muted/20 transition-colors"
                         >
                           <td className="py-4 px-6 text-sm text-muted-foreground">
-                            {patient.date}
+                            {patient.createdAt}
                           </td>
                           <td className="py-4 px-6">
                             <div>
                               <p className="font-medium text-sm">
-                                {patient.name}
+                                {patient.patientName}
                               </p>
                               <p className="text-xs text-muted-foreground">
-                                ID: {patient.id}
+                                ID: {patient.patientId}
                               </p>
                             </div>
                           </td>
                           <td className="py-4 px-6 text-sm text-muted-foreground max-w-xs">
-                            {patient.address}
+                            {patient.village}, {patient.district},{" "}
+                            {patient.state}
                           </td>
                           <td className="py-4 px-6">
                             <Badge variant="outline" className="text-xs">
@@ -243,6 +176,7 @@ export default function PatientList() {
                               variant="default"
                               size="sm"
                               className="h-8 px-3 text-xs"
+                              onClick={() => handleEdit(patient.patientId)}
                             >
                               <Eye className="w-3 h-3 mr-1" />
                               View
@@ -265,6 +199,33 @@ export default function PatientList() {
                                 : patient.status}
                             </Badge>
                           </td>
+                          <td className="py-4 px-6">
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0"
+                                onClick={() => handleEdit(patient.patientId)}
+                                title="Edit Patient"
+                              >
+                                <Edit className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                                onClick={() =>
+                                  handleDelete(
+                                    patient.patientId,
+                                    patient.patientName,
+                                  )
+                                }
+                                title="Delete Patient"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -273,14 +234,19 @@ export default function PatientList() {
 
                 {/* Mobile Cards */}
                 <div className="lg:hidden space-y-4 p-4">
-                  {currentPatients.map((patient) => (
-                    <Card key={patient.id} className="p-4">
+                  {currentPatients.map((patient, index) => (
+                    <Card
+                      key={`mobile-${patient.patientId}-${index}`}
+                      className="p-4"
+                    >
                       <div className="space-y-3">
                         <div className="flex items-start justify-between">
                           <div>
-                            <h3 className="font-medium">{patient.name}</h3>
+                            <h3 className="font-medium">
+                              {patient.patientName}
+                            </h3>
                             <p className="text-sm text-muted-foreground">
-                              ID: {patient.id} • {patient.date}
+                              ID: {patient.patientId} • {patient.createdAt}
                             </p>
                           </div>
                           <Badge className={getStatusColor(patient.status)}>
@@ -290,7 +256,8 @@ export default function PatientList() {
 
                         <div className="space-y-2">
                           <p className="text-sm text-muted-foreground">
-                            {patient.address}
+                            {patient.village}, {patient.district},{" "}
+                            {patient.state}
                           </p>
                           <Badge variant="outline" className="text-xs">
                             {patient.disease}
@@ -298,7 +265,11 @@ export default function PatientList() {
                         </div>
 
                         <div className="flex gap-2 pt-2">
-                          <Button size="sm" className="flex-1 h-8 text-xs">
+                          <Button
+                            size="sm"
+                            className="flex-1 h-8 text-xs"
+                            onClick={() => handleEdit(patient.patientId)}
+                          >
                             <Eye className="w-3 h-3 mr-1" />
                             View
                           </Button>
@@ -309,6 +280,29 @@ export default function PatientList() {
                           >
                             <FileText className="w-3 h-3 mr-1" />
                             Report
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-8 p-0"
+                            onClick={() => handleEdit(patient.patientId)}
+                            title="Edit"
+                          >
+                            <Edit className="w-3 h-3" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                            onClick={() =>
+                              handleDelete(
+                                patient.patientId,
+                                patient.patientName,
+                              )
+                            }
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3 h-3" />
                           </Button>
                         </div>
                       </div>
