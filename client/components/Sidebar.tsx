@@ -68,7 +68,7 @@ export function Sidebar() {
                 HealthCare
               </h1>
               <p className="text-xs text-sidebar-foreground/60">
-                NGO Dashboard
+                Doctor Dashboard
               </p>
             </div>
           </div>
