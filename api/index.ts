@@ -1,13 +1,11 @@
-import type { IncomingMessage, ServerResponse } from "http";
-import serverlessHttp from "serverless-http";
 import { createServer } from "../server/index";
 import { connectDB } from "../server/db";
 
 const app = createServer();
-const httpHandler = serverlessHttp(app);
 
-// Await DB connection before every request — critical for serverless cold starts
-export default async function handler(req: IncomingMessage, res: ServerResponse) {
+// Express apps are standard Node.js request listeners (req, res) — no serverless-http needed.
+// CJS bundling (via api/package.json) keeps require() available for Mongoose/dotenv internals.
+module.exports = async function handler(req: any, res: any) {
   await connectDB();
-  return httpHandler(req, res);
-}
+  app(req, res);
+};
