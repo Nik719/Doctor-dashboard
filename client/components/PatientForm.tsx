@@ -32,7 +32,19 @@ import {
   Save,
   Printer,
   Upload,
+  Stethoscope,
+  FlaskConical,
 } from "lucide-react";
+import { DOCTORS } from "@/lib/seedData";
+
+// Reusable section header icon badge
+function SectionIcon({ icon: Icon }: { icon: React.ElementType }) {
+  return (
+    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+      <Icon className="w-4 h-4 text-primary" />
+    </div>
+  );
+}
 
 export function PatientForm() {
   const navigate = useNavigate();
@@ -88,6 +100,8 @@ export function PatientForm() {
     bloodSugarRBS: "",
     bloodSugarFBS: "",
     bloodSugarPP: "",
+    assignedDoctor: "",
+    doctorId: "",
   });
 
   const [familyComposition, setFamilyComposition] = useState<FamilyMember[]>(
@@ -146,12 +160,13 @@ export function PatientForm() {
     setFamilyComposition((prev) => prev.filter((member) => member.id !== id));
   };
 
-  const handleSave = () => {
-    // Ensure unique patient ID if not already set or if it's the default
-    const uniquePatientId =
-      formData.patientId === `${Date.now()}` || !formData.patientId
-        ? `PT${Date.now()}`
-        : formData.patientId;
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (saving) return;
+    const uniquePatientId = !formData.patientId
+      ? `PT${Date.now()}`
+      : formData.patientId;
 
     const patientData: PatientData = {
       ...formData,
@@ -161,17 +176,26 @@ export function PatientForm() {
       status: "active",
     };
 
-    addPatient(patientData);
-
-    toast({
-      title: "Patient saved",
-      description: `${patientData.patientName} has been registered successfully.`,
-    });
-    navigate("/patients");
+    setSaving(true);
+    try {
+      await addPatient(patientData);
+      toast({
+        title: "Patient saved",
+        description: `${patientData.patientName} has been registered successfully.`,
+      });
+      navigate("/patients");
+    } catch (err: any) {
+      toast({
+        title: "Save failed",
+        description: err.message ?? "Could not save patient.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handlePrint = () => {
-    // Create print-specific styles
     const printStyles = `
       <style>
         @media print {
@@ -191,12 +215,8 @@ export function PatientForm() {
         }
       </style>
     `;
-
-    // Get the form content
     const formContent =
       document.querySelector(".print-content")?.innerHTML || "";
-
-    // Create print window
     const printWindow = window.open("", "_blank");
     if (printWindow) {
       printWindow.document.write(`
@@ -222,819 +242,922 @@ export function PatientForm() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Family Details Section */}
-      <Card className="border-l-4 border-l-blue-500">
-        <CardHeader className="bg-blue-50">
-          <CardTitle className="flex items-center gap-2 text-blue-700">
-            <Users className="w-5 h-5" />
-            🟦 Family Details
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="headOfFamily">Head of the Family</Label>
-              <Input
-                id="headOfFamily"
-                value={formData.headOfFamily}
-                onChange={(e) => updateFormData("headOfFamily", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="patientName">Patient Name</Label>
-              <Input
-                id="patientName"
-                value={formData.patientName}
-                onChange={(e) => updateFormData("patientName", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="patientId">Patient ID</Label>
-              <Input
-                id="patientId"
-                value={formData.patientId}
-                onChange={(e) => updateFormData("patientId", e.target.value)}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="flex flex-col h-full">
+      {/* Sticky action bar */}
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border px-6 py-3 flex items-center justify-between no-print">
+        <div>
+          <h1 className="text-lg font-semibold text-foreground leading-tight">
+            Patient Registration
+          </h1>
+          {formData.patientName ? (
+            <p className="text-xs text-muted-foreground">
+              Registering: <span className="font-medium text-foreground">{formData.patientName}</span>
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">Fill in patient details below</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={handlePrint} className="hidden sm:flex items-center gap-1.5">
+            <Printer className="w-3.5 h-3.5" />
+            Print
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => navigate("/patients")}>
+            Cancel
+          </Button>
+          <Button size="sm" onClick={handleSave} disabled={saving} className="flex items-center gap-1.5">
+            <Save className="w-3.5 h-3.5" />
+            {saving ? "Saving…" : "Save Patient"}
+          </Button>
+        </div>
+      </div>
 
-      {/* Complete Address Section */}
-      <Card className="border-l-4 border-l-green-500">
-        <CardHeader className="bg-green-50">
-          <CardTitle className="flex items-center gap-2 text-green-700">
-            <MapPin className="w-5 h-5" />
-            🟩 Complete Address
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="country">Country</Label>
-              <Input
-                id="country"
-                value={formData.country}
-                onChange={(e) => updateFormData("country", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="state">State</Label>
-              <Input
-                id="state"
-                value={formData.state}
-                onChange={(e) => updateFormData("state", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="district">District / City</Label>
-              <Input
-                id="district"
-                value={formData.district}
-                onChange={(e) => updateFormData("district", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="block">Block</Label>
-              <Input
-                id="block"
-                value={formData.block}
-                onChange={(e) => updateFormData("block", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="village">Village / Municipal</Label>
-              <Input
-                id="village"
-                value={formData.village}
-                onChange={(e) => updateFormData("village", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="location">Location</Label>
-              <Select
-                value={formData.location}
-                onValueChange={(value) => updateFormData("location", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select location type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Urban">Urban</SelectItem>
-                  <SelectItem value="Rural">Rural</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="panchayat">Panchayat</Label>
-              <Input
-                id="panchayat"
-                value={formData.panchayat}
-                onChange={(e) => updateFormData("panchayat", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="wardNo">Ward No</Label>
-              <Input
-                id="wardNo"
-                value={formData.wardNo}
-                onChange={(e) => updateFormData("wardNo", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="pinCode">Pin Code</Label>
-              <Input
-                id="pinCode"
-                value={formData.pinCode}
-                onChange={(e) => updateFormData("pinCode", e.target.value)}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Form content */}
+      <div className="flex-1 overflow-auto">
+        <div className="p-6 space-y-5 print-content">
 
-      {/* Health Seeking Behaviour Section */}
-      <Card className="border-l-4 border-l-yellow-500">
-        <CardHeader className="bg-yellow-50">
-          <CardTitle className="flex items-center gap-2 text-yellow-700">
-            <Heart className="w-5 h-5" />
-            🟨 Health Seeking Behaviour
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="minorIllness">
-                Where do you go for minor illness
-              </Label>
-              <Input
-                id="minorIllness"
-                value={formData.minorIllnessLocation}
-                onChange={(e) =>
-                  updateFormData("minorIllnessLocation", e.target.value)
-                }
-              />
-            </div>
-            <div>
-              <Label htmlFor="majorIllness">
-                Where do you go for major illness
-              </Label>
-              <Input
-                id="majorIllness"
-                value={formData.majorIllnessLocation}
-                onChange={(e) =>
-                  updateFormData("majorIllnessLocation", e.target.value)
-                }
-              />
-            </div>
-            <div>
-              <Label htmlFor="systemOfMedicine">
-                System of medicine preferred
-              </Label>
-              <Select
-                value={formData.systemOfMedicine}
-                onValueChange={(value) =>
-                  updateFormData("systemOfMedicine", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Allopath">Allopath</SelectItem>
-                  <SelectItem value="Ayurvedic">Ayurvedic</SelectItem>
-                  <SelectItem value="Homeopathic">Homeopathic</SelectItem>
-                  <SelectItem value="Unani">Unani</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="familyMembers">Number of family members</Label>
-              <Input
-                id="familyMembers"
-                type="number"
-                value={formData.familyMembers}
-                onChange={(e) =>
-                  updateFormData("familyMembers", e.target.value)
-                }
-              />
-            </div>
-            <div>
-              <Label htmlFor="familyIncome">Total family income / month</Label>
-              <Input
-                id="familyIncome"
-                type="number"
-                value={formData.familyIncome}
-                onChange={(e) => updateFormData("familyIncome", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="familyType">Type of family</Label>
-              <Select
-                value={formData.familyType}
-                onValueChange={(value) => updateFormData("familyType", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Nuclear">Nuclear</SelectItem>
-                  <SelectItem value="Joint">Joint</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="religion">Religion</Label>
-              <Input
-                id="religion"
-                value={formData.religion}
-                onChange={(e) => updateFormData("religion", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="caste">Caste</Label>
-              <Input
-                id="caste"
-                value={formData.caste}
-                onChange={(e) => updateFormData("caste", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="rationCard">Ration Card Type</Label>
-              <Select
-                value={formData.rationCardType}
-                onValueChange={(value) =>
-                  updateFormData("rationCardType", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Antyodaya">Antyodaya</SelectItem>
-                  <SelectItem value="BPL">BPL</SelectItem>
-                  <SelectItem value="APL">APL</SelectItem>
-                  <SelectItem value="None">None</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="ayushman"
-                checked={formData.ayushmanCard}
-                onCheckedChange={(checked) =>
-                  updateFormData("ayushmanCard", checked)
-                }
-              />
-              <Label htmlFor="ayushman">Ayushman Card</Label>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          {/* Section 1 — Family Details */}
+          <Card>
+            <CardHeader className="bg-muted/40 border-b border-border py-4">
+              <CardTitle className="flex items-center gap-3 text-base font-semibold text-foreground">
+                <SectionIcon icon={Users} />
+                Family Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="headOfFamily">Head of Family</Label>
+                  <Input
+                    id="headOfFamily"
+                    placeholder="Full name of head of family"
+                    value={formData.headOfFamily}
+                    onChange={(e) => updateFormData("headOfFamily", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="patientName">Patient Name</Label>
+                  <Input
+                    id="patientName"
+                    placeholder="Full name of patient"
+                    value={formData.patientName}
+                    onChange={(e) => updateFormData("patientName", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="patientId">Patient ID</Label>
+                  <Input
+                    id="patientId"
+                    placeholder="Auto-generated if left blank"
+                    value={formData.patientId}
+                    onChange={(e) => updateFormData("patientId", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="assignedDoctor">Assigned Doctor</Label>
+                  <Select
+                    value={formData.doctorId}
+                    onValueChange={(value) => {
+                      const doctor = DOCTORS.find((d) => d.id === value);
+                      updateFormData("doctorId", value);
+                      updateFormData("assignedDoctor", doctor?.name ?? "");
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a doctor" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {DOCTORS.map((doctor) => (
+                        <SelectItem key={doctor.id} value={doctor.id}>
+                          {doctor.name}
+                          <span className="ml-2 text-xs text-muted-foreground">
+                            — {doctor.specialty}
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Family Composition Section */}
-      <Card className="border-l-4 border-l-amber-600">
-        <CardHeader className="bg-amber-50">
-          <CardTitle className="flex items-center gap-2 justify-between text-amber-700">
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              🟫 Family Composition
-            </div>
-            <Button onClick={addFamilyMember} size="sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Member
+          {/* Section 2 — Complete Address */}
+          <Card>
+            <CardHeader className="bg-muted/40 border-b border-border py-4">
+              <CardTitle className="flex items-center gap-3 text-base font-semibold text-foreground">
+                <SectionIcon icon={MapPin} />
+                Complete Address
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="country">Country</Label>
+                  <Input
+                    id="country"
+                    placeholder="e.g. India"
+                    value={formData.country}
+                    onChange={(e) => updateFormData("country", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="state">State</Label>
+                  <Input
+                    id="state"
+                    placeholder="e.g. Bihar"
+                    value={formData.state}
+                    onChange={(e) => updateFormData("state", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="district">District / City</Label>
+                  <Input
+                    id="district"
+                    placeholder="e.g. Patna"
+                    value={formData.district}
+                    onChange={(e) => updateFormData("district", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="block">Block</Label>
+                  <Input
+                    id="block"
+                    placeholder="Block name"
+                    value={formData.block}
+                    onChange={(e) => updateFormData("block", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="village">Village / Municipal</Label>
+                  <Input
+                    id="village"
+                    placeholder="Village or ward name"
+                    value={formData.village}
+                    onChange={(e) => updateFormData("village", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="location">Location Type</Label>
+                  <Select
+                    value={formData.location}
+                    onValueChange={(value) => updateFormData("location", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select location type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Urban">Urban</SelectItem>
+                      <SelectItem value="Rural">Rural</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="panchayat">Panchayat</Label>
+                  <Input
+                    id="panchayat"
+                    placeholder="Panchayat name"
+                    value={formData.panchayat}
+                    onChange={(e) => updateFormData("panchayat", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="wardNo">Ward No.</Label>
+                  <Input
+                    id="wardNo"
+                    placeholder="e.g. 12"
+                    value={formData.wardNo}
+                    onChange={(e) => updateFormData("wardNo", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="pinCode">Pin Code</Label>
+                  <Input
+                    id="pinCode"
+                    placeholder="6-digit pin code"
+                    value={formData.pinCode}
+                    onChange={(e) => updateFormData("pinCode", e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 3 — Health Seeking Behaviour */}
+          <Card>
+            <CardHeader className="bg-muted/40 border-b border-border py-4">
+              <CardTitle className="flex items-center gap-3 text-base font-semibold text-foreground">
+                <SectionIcon icon={Heart} />
+                Health Seeking Behaviour
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="minorIllness">Where to go for minor illness</Label>
+                  <Input
+                    id="minorIllness"
+                    placeholder="e.g. PHC, local clinic"
+                    value={formData.minorIllnessLocation}
+                    onChange={(e) =>
+                      updateFormData("minorIllnessLocation", e.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="majorIllness">Where to go for major illness</Label>
+                  <Input
+                    id="majorIllness"
+                    placeholder="e.g. district hospital"
+                    value={formData.majorIllnessLocation}
+                    onChange={(e) =>
+                      updateFormData("majorIllnessLocation", e.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="systemOfMedicine">System of medicine preferred</Label>
+                  <Select
+                    value={formData.systemOfMedicine}
+                    onValueChange={(value) =>
+                      updateFormData("systemOfMedicine", value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select system" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Allopath">Allopath</SelectItem>
+                      <SelectItem value="Ayurvedic">Ayurvedic</SelectItem>
+                      <SelectItem value="Homeopathic">Homeopathic</SelectItem>
+                      <SelectItem value="Unani">Unani</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="familyMembers">Number of family members</Label>
+                  <Input
+                    id="familyMembers"
+                    type="number"
+                    placeholder="e.g. 4"
+                    value={formData.familyMembers}
+                    onChange={(e) =>
+                      updateFormData("familyMembers", e.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="familyIncome">Total family income / month (₹)</Label>
+                  <Input
+                    id="familyIncome"
+                    type="number"
+                    placeholder="e.g. 15000"
+                    value={formData.familyIncome}
+                    onChange={(e) => updateFormData("familyIncome", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="familyType">Type of family</Label>
+                  <Select
+                    value={formData.familyType}
+                    onValueChange={(value) => updateFormData("familyType", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select family type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Nuclear">Nuclear</SelectItem>
+                      <SelectItem value="Joint">Joint</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="religion">Religion</Label>
+                  <Input
+                    id="religion"
+                    placeholder="e.g. Hindu, Muslim, Christian"
+                    value={formData.religion}
+                    onChange={(e) => updateFormData("religion", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="caste">Caste</Label>
+                  <Input
+                    id="caste"
+                    placeholder="Caste category"
+                    value={formData.caste}
+                    onChange={(e) => updateFormData("caste", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="rationCard">Ration Card Type</Label>
+                  <Select
+                    value={formData.rationCardType}
+                    onValueChange={(value) =>
+                      updateFormData("rationCardType", value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select card type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Antyodaya">Antyodaya</SelectItem>
+                      <SelectItem value="BPL">BPL</SelectItem>
+                      <SelectItem value="APL">APL</SelectItem>
+                      <SelectItem value="None">None</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-3 pt-1">
+                  <Checkbox
+                    id="ayushman"
+                    checked={formData.ayushmanCard}
+                    onCheckedChange={(checked) =>
+                      updateFormData("ayushmanCard", checked)
+                    }
+                  />
+                  <Label htmlFor="ayushman" className="cursor-pointer">Has Ayushman Card</Label>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 4 — Family Composition */}
+          <Card>
+            <CardHeader className="bg-muted/40 border-b border-border py-4">
+              <CardTitle className="flex items-center justify-between text-base font-semibold text-foreground">
+                <div className="flex items-center gap-3">
+                  <SectionIcon icon={Users} />
+                  Family Composition
+                  {familyComposition.length > 0 && (
+                    <Badge variant="secondary" className="text-xs font-normal">
+                      {familyComposition.length} {familyComposition.length === 1 ? "member" : "members"}
+                    </Badge>
+                  )}
+                </div>
+                <Button onClick={addFamilyMember} size="sm" variant="outline" className="h-8 text-xs no-print">
+                  <Plus className="w-3.5 h-3.5 mr-1.5" />
+                  Add Member
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5">
+              {familyComposition.length === 0 ? (
+                <div className="text-center py-8 border border-dashed border-border rounded-lg">
+                  <Users className="w-8 h-8 text-muted-foreground/50 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No family members added yet</p>
+                  <Button onClick={addFamilyMember} size="sm" variant="outline" className="mt-3 no-print">
+                    <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    Add First Member
+                  </Button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-muted/40">
+                        <th className="border border-border px-3 py-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Type</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Name</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Age</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Sex</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Relation</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Marital</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Occupation</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Income/mo</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Chronic Disease</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide">Compliance</th>
+                        <th className="border border-border px-3 py-2 text-left font-medium text-muted-foreground text-xs uppercase tracking-wide no-print"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {familyComposition.map((member) => (
+                        <tr key={member.id} className="hover:bg-muted/20 transition-colors">
+                          <td className="border border-border px-2 py-1.5">
+                            <Input
+                              value={member.type}
+                              onChange={(e) =>
+                                updateFamilyMember(member.id, "type", e.target.value)
+                              }
+                              placeholder="Adult"
+                              className="h-8 text-sm"
+                            />
+                          </td>
+                          <td className="border border-border px-2 py-1.5">
+                            <Input
+                              value={member.name}
+                              onChange={(e) =>
+                                updateFamilyMember(member.id, "name", e.target.value)
+                              }
+                              className="h-8 text-sm"
+                            />
+                          </td>
+                          <td className="border border-border px-2 py-1.5">
+                            <Input
+                              value={member.age}
+                              onChange={(e) =>
+                                updateFamilyMember(member.id, "age", e.target.value)
+                              }
+                              type="number"
+                              className="h-8 text-sm w-16"
+                            />
+                          </td>
+                          <td className="border border-border px-2 py-1.5">
+                            <Select
+                              value={member.sex}
+                              onValueChange={(value) =>
+                                updateFamilyMember(member.id, "sex", value)
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-sm w-20">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="M">Male</SelectItem>
+                                <SelectItem value="F">Female</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="border border-border px-2 py-1.5">
+                            <Input
+                              value={member.relation}
+                              onChange={(e) =>
+                                updateFamilyMember(member.id, "relation", e.target.value)
+                              }
+                              className="h-8 text-sm"
+                            />
+                          </td>
+                          <td className="border border-border px-2 py-1.5">
+                            <Select
+                              value={member.maritalStatus}
+                              onValueChange={(value) =>
+                                updateFamilyMember(member.id, "maritalStatus", value)
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Married">Married</SelectItem>
+                                <SelectItem value="Unmarried">Unmarried</SelectItem>
+                                <SelectItem value="Divorced">Divorced</SelectItem>
+                                <SelectItem value="Widowed">Widowed</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="border border-border px-2 py-1.5">
+                            <Input
+                              value={member.occupation}
+                              onChange={(e) =>
+                                updateFamilyMember(member.id, "occupation", e.target.value)
+                              }
+                              className="h-8 text-sm"
+                            />
+                          </td>
+                          <td className="border border-border px-2 py-1.5">
+                            <Input
+                              value={member.income}
+                              onChange={(e) =>
+                                updateFamilyMember(member.id, "income", e.target.value)
+                              }
+                              type="number"
+                              className="h-8 text-sm w-24"
+                            />
+                          </td>
+                          <td className="border border-border px-2 py-1.5">
+                            <Input
+                              value={member.chronicDisease}
+                              onChange={(e) =>
+                                updateFamilyMember(member.id, "chronicDisease", e.target.value)
+                              }
+                              className="h-8 text-sm"
+                            />
+                          </td>
+                          <td className="border border-border px-2 py-1.5">
+                            <Select
+                              value={member.treatmentCompliance}
+                              onValueChange={(value) =>
+                                updateFamilyMember(member.id, "treatmentCompliance", value)
+                              }
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="Good">Good</SelectItem>
+                                <SelectItem value="Fair">Fair</SelectItem>
+                                <SelectItem value="Poor">Poor</SelectItem>
+                                <SelectItem value="N/A">N/A</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="border border-border px-2 py-1.5 no-print">
+                            <Button
+                              onClick={() => removeFamilyMember(member.id)}
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Section 5 — Patient Disease Summary */}
+          <Card>
+            <CardHeader className="bg-muted/40 border-b border-border py-4">
+              <CardTitle className="flex items-center gap-3 text-base font-semibold text-foreground">
+                <SectionIcon icon={Stethoscope} />
+                Patient Disease Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="disease">Disease</Label>
+                  <Input
+                    id="disease"
+                    placeholder="Primary diagnosis"
+                    value={formData.disease}
+                    onChange={(e) => updateFormData("disease", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="treatmentCompliance">Treatment Compliance</Label>
+                  <Select
+                    value={formData.treatmentCompliance}
+                    onValueChange={(value) =>
+                      updateFormData("treatmentCompliance", value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select compliance" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Good">Good</SelectItem>
+                      <SelectItem value="Fair">Fair</SelectItem>
+                      <SelectItem value="Poor">Poor</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label htmlFor="diseaseSummary">Disease Summary</Label>
+                  <Textarea
+                    id="diseaseSummary"
+                    placeholder="Brief summary of the disease history and progression..."
+                    value={formData.diseaseSummary}
+                    onChange={(e) =>
+                      updateFormData("diseaseSummary", e.target.value)
+                    }
+                    className="min-h-[80px]"
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label htmlFor="symptoms">Symptoms</Label>
+                  <Textarea
+                    id="symptoms"
+                    placeholder="List presenting symptoms..."
+                    value={formData.symptoms}
+                    onChange={(e) => updateFormData("symptoms", e.target.value)}
+                    className="min-h-[80px]"
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label htmlFor="currentMedication">Current Medication with Dose</Label>
+                  <Textarea
+                    id="currentMedication"
+                    placeholder="List all current medications with dosage..."
+                    value={formData.currentMedication}
+                    onChange={(e) =>
+                      updateFormData("currentMedication", e.target.value)
+                    }
+                    className="min-h-[80px]"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 6 — Patient Personal Info */}
+          <Card>
+            <CardHeader className="bg-muted/40 border-b border-border py-4">
+              <CardTitle className="flex items-center gap-3 text-base font-semibold text-foreground">
+                <SectionIcon icon={User} />
+                Patient Personal Info
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="mobile">Mobile Number</Label>
+                  <Input
+                    id="mobile"
+                    placeholder="+91 XXXXX XXXXX"
+                    value={formData.mobile}
+                    onChange={(e) => updateFormData("mobile", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="height">Height (cm)</Label>
+                  <Input
+                    id="height"
+                    type="number"
+                    placeholder="e.g. 165"
+                    value={formData.height}
+                    onChange={(e) => updateFormData("height", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="weight">Weight (kg)</Label>
+                  <Input
+                    id="weight"
+                    type="number"
+                    placeholder="e.g. 70"
+                    value={formData.weight}
+                    onChange={(e) => updateFormData("weight", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="bmi">
+                    BMI
+                    {formData.bmi && (
+                      <span className={`ml-2 text-xs font-normal ${
+                        parseFloat(formData.bmi) < 18.5 ? "text-blue-600" :
+                        parseFloat(formData.bmi) < 25 ? "text-green-600" :
+                        parseFloat(formData.bmi) < 30 ? "text-yellow-600" :
+                        "text-red-600"
+                      }`}>
+                        ({parseFloat(formData.bmi) < 18.5 ? "Underweight" :
+                          parseFloat(formData.bmi) < 25 ? "Normal" :
+                          parseFloat(formData.bmi) < 30 ? "Overweight" : "Obese"})
+                      </span>
+                    )}
+                  </Label>
+                  <Input
+                    id="bmi"
+                    value={formData.bmi}
+                    readOnly
+                    placeholder="Auto-calculated"
+                    className="bg-muted/40 text-muted-foreground"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="education">Education Level</Label>
+                  <Select
+                    value={formData.education}
+                    onValueChange={(value) => updateFormData("education", value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Illiterate">Illiterate</SelectItem>
+                      <SelectItem value="Primary School">Primary School</SelectItem>
+                      <SelectItem value="Middle School">Middle School</SelectItem>
+                      <SelectItem value="High School">High School</SelectItem>
+                      <SelectItem value="Intermediate">Intermediate</SelectItem>
+                      <SelectItem value="Graduate">Graduate</SelectItem>
+                      <SelectItem value="Post Graduate">Post Graduate</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="occupation">Occupation</Label>
+                  <Input
+                    id="occupation"
+                    placeholder="e.g. Farmer, Teacher"
+                    value={formData.occupation}
+                    onChange={(e) => updateFormData("occupation", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="maritalStatus">Marital Status</Label>
+                  <Select
+                    value={formData.maritalStatus}
+                    onValueChange={(value) =>
+                      updateFormData("maritalStatus", value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Married">Married</SelectItem>
+                      <SelectItem value="Unmarried">Unmarried</SelectItem>
+                      <SelectItem value="Divorced">Divorced</SelectItem>
+                      <SelectItem value="Widowed">Widowed</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 7 — Lifestyle & History */}
+          <Card>
+            <CardHeader className="bg-muted/40 border-b border-border py-4">
+              <CardTitle className="flex items-center gap-3 text-base font-semibold text-foreground">
+                <SectionIcon icon={Activity} />
+                Lifestyle & History
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/20">
+                  <Checkbox
+                    id="tobacco"
+                    checked={formData.tobacco}
+                    onCheckedChange={(checked) =>
+                      updateFormData("tobacco", checked)
+                    }
+                  />
+                  <Label htmlFor="tobacco" className="cursor-pointer font-normal">
+                    Tobacco use (past 1 year)
+                  </Label>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg border border-border bg-muted/20">
+                  <Checkbox
+                    id="alcohol"
+                    checked={formData.alcohol}
+                    onCheckedChange={(checked) =>
+                      updateFormData("alcohol", checked)
+                    }
+                  />
+                  <Label htmlFor="alcohol" className="cursor-pointer font-normal">
+                    Alcohol use (past 1 year)
+                  </Label>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="drugAddiction">Other drug addiction</Label>
+                  <Input
+                    id="drugAddiction"
+                    placeholder="Specify if any"
+                    value={formData.drugAddiction}
+                    onChange={(e) =>
+                      updateFormData("drugAddiction", e.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="familyHistory">Family history of chronic disease</Label>
+                  <Input
+                    id="familyHistory"
+                    placeholder="e.g. Diabetes, Hypertension"
+                    value={formData.familyHistory}
+                    onChange={(e) =>
+                      updateFormData("familyHistory", e.target.value)
+                    }
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label htmlFor="otherChronicDiseases">Other chronic diseases</Label>
+                  <Textarea
+                    id="otherChronicDiseases"
+                    placeholder="List any other chronic conditions..."
+                    value={formData.otherChronicDiseases}
+                    onChange={(e) =>
+                      updateFormData("otherChronicDiseases", e.target.value)
+                    }
+                    className="min-h-[72px]"
+                  />
+                </div>
+                <div className="md:col-span-2 space-y-1.5">
+                  <Label htmlFor="hospitalHistory">Past hospital admission history</Label>
+                  <Textarea
+                    id="hospitalHistory"
+                    placeholder="Previous medical or surgical admissions..."
+                    value={formData.hospitalHistory}
+                    onChange={(e) =>
+                      updateFormData("hospitalHistory", e.target.value)
+                    }
+                    className="min-h-[72px]"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 8 — Investigation */}
+          <Card>
+            <CardHeader className="bg-muted/40 border-b border-border py-4">
+              <CardTitle className="flex items-center gap-3 text-base font-semibold text-foreground">
+                <SectionIcon icon={FlaskConical} />
+                Investigation
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="systolicBP">Systolic BP (mmHg)</Label>
+                  <Input
+                    id="systolicBP"
+                    type="number"
+                    placeholder="e.g. 120"
+                    value={formData.systolicBP}
+                    onChange={(e) => updateFormData("systolicBP", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="diastolicBP">Diastolic BP (mmHg)</Label>
+                  <Input
+                    id="diastolicBP"
+                    type="number"
+                    placeholder="e.g. 80"
+                    value={formData.diastolicBP}
+                    onChange={(e) => updateFormData("diastolicBP", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="bpDate">BP Measured Date</Label>
+                  <Input
+                    id="bpDate"
+                    type="date"
+                    value={formData.bpDate}
+                    onChange={(e) => updateFormData("bpDate", e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="bloodSugarRBS">Blood Sugar — RBS (mg/dL)</Label>
+                  <Input
+                    id="bloodSugarRBS"
+                    type="number"
+                    placeholder="e.g. 110"
+                    value={formData.bloodSugarRBS}
+                    onChange={(e) =>
+                      updateFormData("bloodSugarRBS", e.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="bloodSugarFBS">Blood Sugar — FBS (mg/dL)</Label>
+                  <Input
+                    id="bloodSugarFBS"
+                    type="number"
+                    placeholder="e.g. 95"
+                    value={formData.bloodSugarFBS}
+                    onChange={(e) =>
+                      updateFormData("bloodSugarFBS", e.target.value)
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="bloodSugarPP">Blood Sugar — PP (mg/dL)</Label>
+                  <Input
+                    id="bloodSugarPP"
+                    type="number"
+                    placeholder="e.g. 140"
+                    value={formData.bloodSugarPP}
+                    onChange={(e) => updateFormData("bloodSugarPP", e.target.value)}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Section 9 — Documents */}
+          <Card>
+            <CardHeader className="bg-muted/40 border-b border-border py-4">
+              <CardTitle className="flex items-center gap-3 text-base font-semibold text-foreground">
+                <SectionIcon icon={FileText} />
+                Documents
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <div className="flex flex-col sm:flex-row gap-3 no-print">
+                <Button variant="outline" className="flex items-center gap-2">
+                  <Upload className="w-4 h-4" />
+                  Upload Documents
+                </Button>
+                <Button variant="outline" className="flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  View Files
+                </Button>
+                <Button onClick={handlePrint} variant="outline" className="flex items-center gap-2">
+                  <Printer className="w-4 h-4" />
+                  Print this page
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Bottom save bar */}
+          <div className="flex justify-end gap-3 pt-2 pb-6 no-print">
+            <Button variant="outline" size="lg" onClick={() => navigate("/patients")}>
+              Cancel
             </Button>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-muted">
-                  <th className="border p-2 text-left">Type</th>
-                  <th className="border p-2 text-left">Name</th>
-                  <th className="border p-2 text-left">Age</th>
-                  <th className="border p-2 text-left">Sex</th>
-                  <th className="border p-2 text-left">Relation</th>
-                  <th className="border p-2 text-left">Marital Status</th>
-                  <th className="border p-2 text-left">Occupation</th>
-                  <th className="border p-2 text-left">Income/Month</th>
-                  <th className="border p-2 text-left">Chronic Disease</th>
-                  <th className="border p-2 text-left">Compliance</th>
-                  <th className="border p-2 text-left">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {familyComposition.map((member) => (
-                  <tr key={member.id}>
-                    <td className="border p-2">
-                      <Input
-                        value={member.type}
-                        onChange={(e) =>
-                          updateFamilyMember(member.id, "type", e.target.value)
-                        }
-                        placeholder="e.g., Adult"
-                      />
-                    </td>
-                    <td className="border p-2">
-                      <Input
-                        value={member.name}
-                        onChange={(e) =>
-                          updateFamilyMember(member.id, "name", e.target.value)
-                        }
-                      />
-                    </td>
-                    <td className="border p-2">
-                      <Input
-                        value={member.age}
-                        onChange={(e) =>
-                          updateFamilyMember(member.id, "age", e.target.value)
-                        }
-                        type="number"
-                      />
-                    </td>
-                    <td className="border p-2">
-                      <Select
-                        value={member.sex}
-                        onValueChange={(value) =>
-                          updateFamilyMember(member.id, "sex", value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="M">Male</SelectItem>
-                          <SelectItem value="F">Female</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="border p-2">
-                      <Input
-                        value={member.relation}
-                        onChange={(e) =>
-                          updateFamilyMember(
-                            member.id,
-                            "relation",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </td>
-                    <td className="border p-2">
-                      <Select
-                        value={member.maritalStatus}
-                        onValueChange={(value) =>
-                          updateFamilyMember(member.id, "maritalStatus", value)
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Married">Married</SelectItem>
-                          <SelectItem value="Unmarried">Unmarried</SelectItem>
-                          <SelectItem value="Divorced">Divorced</SelectItem>
-                          <SelectItem value="Widowed">Widowed</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="border p-2">
-                      <Input
-                        value={member.occupation}
-                        onChange={(e) =>
-                          updateFamilyMember(
-                            member.id,
-                            "occupation",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </td>
-                    <td className="border p-2">
-                      <Input
-                        value={member.income}
-                        onChange={(e) =>
-                          updateFamilyMember(
-                            member.id,
-                            "income",
-                            e.target.value,
-                          )
-                        }
-                        type="number"
-                      />
-                    </td>
-                    <td className="border p-2">
-                      <Input
-                        value={member.chronicDisease}
-                        onChange={(e) =>
-                          updateFamilyMember(
-                            member.id,
-                            "chronicDisease",
-                            e.target.value,
-                          )
-                        }
-                      />
-                    </td>
-                    <td className="border p-2">
-                      <Select
-                        value={member.treatmentCompliance}
-                        onValueChange={(value) =>
-                          updateFamilyMember(
-                            member.id,
-                            "treatmentCompliance",
-                            value,
-                          )
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Good">Good</SelectItem>
-                          <SelectItem value="Fair">Fair</SelectItem>
-                          <SelectItem value="Poor">Poor</SelectItem>
-                          <SelectItem value="N/A">N/A</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </td>
-                    <td className="border p-2">
-                      <Button
-                        onClick={() => removeFamilyMember(member.id)}
-                        size="sm"
-                        variant="destructive"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Patient Disease Summary */}
-      <Card className="border-l-4 border-l-purple-500">
-        <CardHeader className="bg-purple-50">
-          <CardTitle className="flex items-center gap-2 text-purple-700">
-            <Activity className="w-5 h-5" />
-            🟪 Patient Disease Summary
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="disease">Disease</Label>
-              <Input
-                id="disease"
-                value={formData.disease}
-                onChange={(e) => updateFormData("disease", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="treatmentCompliance">
-                Present Treatment Compliance
-              </Label>
-              <Select
-                value={formData.treatmentCompliance}
-                onValueChange={(value) =>
-                  updateFormData("treatmentCompliance", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Good">Good</SelectItem>
-                  <SelectItem value="Fair">Fair</SelectItem>
-                  <SelectItem value="Poor">Poor</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="md:col-span-2">
-              <Label htmlFor="diseaseSummary">Disease Summary</Label>
-              <Textarea
-                id="diseaseSummary"
-                value={formData.diseaseSummary}
-                onChange={(e) =>
-                  updateFormData("diseaseSummary", e.target.value)
-                }
-              />
-            </div>
-            <div className="md:col-span-2">
-              <Label htmlFor="symptoms">Symptom of Disease</Label>
-              <Textarea
-                id="symptoms"
-                value={formData.symptoms}
-                onChange={(e) => updateFormData("symptoms", e.target.value)}
-              />
-            </div>
-            <div className="md:col-span-2">
-              <Label htmlFor="currentMedication">
-                Current Medication with Dose
-              </Label>
-              <Textarea
-                id="currentMedication"
-                value={formData.currentMedication}
-                onChange={(e) =>
-                  updateFormData("currentMedication", e.target.value)
-                }
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Patient Personal Info */}
-      <Card className="border-l-4 border-l-red-500">
-        <CardHeader className="bg-red-50">
-          <CardTitle className="flex items-center gap-2 text-red-700">
-            <User className="w-5 h-5" />
-            🟥 Patient Personal Info
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="mobile">Mobile Number</Label>
-              <Input
-                id="mobile"
-                value={formData.mobile}
-                onChange={(e) => updateFormData("mobile", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="height">Height (in cm)</Label>
-              <Input
-                id="height"
-                type="number"
-                value={formData.height}
-                onChange={(e) => updateFormData("height", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="weight">Weight (in kg)</Label>
-              <Input
-                id="weight"
-                type="number"
-                value={formData.weight}
-                onChange={(e) => updateFormData("weight", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="bmi">BMI</Label>
-              <Input
-                id="bmi"
-                value={formData.bmi}
-                onChange={(e) => updateFormData("bmi", e.target.value)}
-                readOnly
-              />
-            </div>
-            <div>
-              <Label htmlFor="education">Education Level</Label>
-              <Select
-                value={formData.education}
-                onValueChange={(value) => updateFormData("education", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Illiterate">Illiterate</SelectItem>
-                  <SelectItem value="Primary School">Primary School</SelectItem>
-                  <SelectItem value="Middle School">Middle School</SelectItem>
-                  <SelectItem value="High School">High School</SelectItem>
-                  <SelectItem value="Intermediate">Intermediate</SelectItem>
-                  <SelectItem value="Graduate">Graduate</SelectItem>
-                  <SelectItem value="Post Graduate">Post Graduate</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="occupation">Occupation</Label>
-              <Input
-                id="occupation"
-                value={formData.occupation}
-                onChange={(e) => updateFormData("occupation", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="maritalStatus">Marital Status</Label>
-              <Select
-                value={formData.maritalStatus}
-                onValueChange={(value) =>
-                  updateFormData("maritalStatus", value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Married">Married</SelectItem>
-                  <SelectItem value="Unmarried">Unmarried</SelectItem>
-                  <SelectItem value="Divorced">Divorced</SelectItem>
-                  <SelectItem value="Widowed">Widowed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Lifestyle & History */}
-      <Card className="border-l-4 border-l-orange-500">
-        <CardHeader className="bg-orange-50">
-          <CardTitle className="flex items-center gap-2 text-orange-700">
-            <Activity className="w-5 h-5" />
-            🟧 Lifestyle & History
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="tobacco"
-                checked={formData.tobacco}
-                onCheckedChange={(checked) =>
-                  updateFormData("tobacco", checked)
-                }
-              />
-              <Label htmlFor="tobacco">Taking tobacco from last 1 year?</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="alcohol"
-                checked={formData.alcohol}
-                onCheckedChange={(checked) =>
-                  updateFormData("alcohol", checked)
-                }
-              />
-              <Label htmlFor="alcohol">Taking alcohol from last 1 year?</Label>
-            </div>
-            <div>
-              <Label htmlFor="drugAddiction">Any other drug addiction?</Label>
-              <Input
-                id="drugAddiction"
-                value={formData.drugAddiction}
-                onChange={(e) =>
-                  updateFormData("drugAddiction", e.target.value)
-                }
-              />
-            </div>
-            <div>
-              <Label htmlFor="familyHistory">
-                Family History of Chronic Disease?
-              </Label>
-              <Input
-                id="familyHistory"
-                value={formData.familyHistory}
-                onChange={(e) =>
-                  updateFormData("familyHistory", e.target.value)
-                }
-              />
-            </div>
-            <div className="md:col-span-2">
-              <Label htmlFor="otherChronicDiseases">
-                Any other chronic disease
-              </Label>
-              <Textarea
-                id="otherChronicDiseases"
-                value={formData.otherChronicDiseases}
-                onChange={(e) =>
-                  updateFormData("otherChronicDiseases", e.target.value)
-                }
-              />
-            </div>
-            <div className="md:col-span-2">
-              <Label htmlFor="hospitalHistory">
-                Past hospital admission (medical/surgical) history
-              </Label>
-              <Textarea
-                id="hospitalHistory"
-                value={formData.hospitalHistory}
-                onChange={(e) =>
-                  updateFormData("hospitalHistory", e.target.value)
-                }
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Investigation */}
-      <Card className="border-l-4 border-l-yellow-500">
-        <CardHeader className="bg-yellow-50">
-          <CardTitle className="flex items-center gap-2 text-yellow-700">
-            <FileText className="w-5 h-5" />
-            🟨 Investigation
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Label htmlFor="systolicBP">Systolic Blood Pressure</Label>
-              <Input
-                id="systolicBP"
-                type="number"
-                value={formData.systolicBP}
-                onChange={(e) => updateFormData("systolicBP", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="diastolicBP">Diastolic Blood Pressure</Label>
-              <Input
-                id="diastolicBP"
-                type="number"
-                value={formData.diastolicBP}
-                onChange={(e) => updateFormData("diastolicBP", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="bpDate">BP Date</Label>
-              <Input
-                id="bpDate"
-                type="date"
-                value={formData.bpDate}
-                onChange={(e) => updateFormData("bpDate", e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="bloodSugarRBS">Blood Sugar (RBS)</Label>
-              <Input
-                id="bloodSugarRBS"
-                type="number"
-                value={formData.bloodSugarRBS}
-                onChange={(e) =>
-                  updateFormData("bloodSugarRBS", e.target.value)
-                }
-              />
-            </div>
-            <div>
-              <Label htmlFor="bloodSugarFBS">Blood Sugar (FBS)</Label>
-              <Input
-                id="bloodSugarFBS"
-                type="number"
-                value={formData.bloodSugarFBS}
-                onChange={(e) =>
-                  updateFormData("bloodSugarFBS", e.target.value)
-                }
-              />
-            </div>
-            <div>
-              <Label htmlFor="bloodSugarPP">Blood Sugar (PP)</Label>
-              <Input
-                id="bloodSugarPP"
-                type="number"
-                value={formData.bloodSugarPP}
-                onChange={(e) => updateFormData("bloodSugarPP", e.target.value)}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Documents */}
-      <Card className="border-l-4 border-l-gray-500">
-        <CardHeader className="bg-gray-50">
-          <CardTitle className="flex items-center gap-2 text-gray-700">
-            <FileText className="w-5 h-5" />
-            📄 Documents
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6 space-y-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button variant="outline" className="flex items-center gap-2">
-              <Upload className="w-4 h-4" />
-              Upload Documents
-            </Button>
-            <Button variant="outline" className="flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              View Files
-            </Button>
-            <Button onClick={handlePrint} className="flex items-center gap-2">
-              <Printer className="w-4 h-4" />
-              Print this page
+            <Button onClick={handleSave} size="lg" disabled={saving} className="flex items-center gap-2">
+              <Save className="w-4 h-4" />
+              {saving ? "Saving…" : "Save Patient Information"}
             </Button>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Save Actions */}
-      <div className="flex justify-end gap-4 pt-6">
-        <Button variant="outline" size="lg">
-          Cancel
-        </Button>
-        <Button
-          onClick={handleSave}
-          size="lg"
-          className="flex items-center gap-2"
-        >
-          <Save className="w-4 h-4" />
-          Save Patient Information
-        </Button>
+        </div>
       </div>
     </div>
   );

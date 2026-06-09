@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 
 export interface PatientData {
   // Family Details
@@ -61,6 +67,10 @@ export interface PatientData {
   bloodSugarFBS: string;
   bloodSugarPP: string;
 
+  // Assigned Doctor
+  assignedDoctor: string;
+  doctorId: string;
+
   // Family Composition
   familyComposition: FamilyMember[];
 
@@ -85,69 +95,94 @@ export interface FamilyMember {
 
 interface PatientContextType {
   patients: PatientData[];
-  addPatient: (patient: PatientData) => void;
-  updatePatient: (patientId: string, patient: PatientData) => void;
-  deletePatient: (patientId: string) => void;
+  loading: boolean;
+  error: string | null;
+  addPatient: (patient: PatientData) => Promise<void>;
+  addPatientsBulk: (patients: PatientData[]) => Promise<void>;
+  updatePatient: (patientId: string, patient: PatientData) => Promise<void>;
+  deletePatient: (patientId: string) => Promise<void>;
   getPatient: (patientId: string) => PatientData | undefined;
 }
 
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
 
-const STORAGE_KEY = "doctor_dashboard_patients";
+const API_BASE = "/api/patients";
 
-function loadPatients(): PatientData[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored ? (JSON.parse(stored) as PatientData[]) : [];
-  } catch {
-    return [];
+async function apiFetch<T>(
+  url: string,
+  options?: RequestInit,
+): Promise<T> {
+  const res = await fetch(url, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error ?? `HTTP ${res.status}`);
   }
-}
-
-function savePatients(patients: PatientData[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
-  } catch {
-    // Storage quota exceeded — fail silently
-  }
+  return res.json() as Promise<T>;
 }
 
 export function PatientProvider({ children }: { children: ReactNode }) {
-  const [patients, setPatients] = useState<PatientData[]>(loadPatients);
+  const [patients, setPatients] = useState<PatientData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const updateAndPersist = (updater: (prev: PatientData[]) => PatientData[]) => {
-    setPatients((prev) => {
-      const next = updater(prev);
-      savePatients(next);
-      return next;
+  useEffect(() => {
+    apiFetch<PatientData[]>(API_BASE)
+      .then((data) => setPatients(data))
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const addPatient = async (patient: PatientData) => {
+    const created = await apiFetch<PatientData>(API_BASE, {
+      method: "POST",
+      body: JSON.stringify(patient),
     });
+    setPatients((prev) => [...prev, created]);
   };
 
-  const addPatient = (patient: PatientData) => {
-    updateAndPersist((prev) => [...prev, patient]);
+  const addPatientsBulk = async (newPatients: PatientData[]) => {
+    await apiFetch(`${API_BASE}/bulk`, {
+      method: "POST",
+      body: JSON.stringify(newPatients),
+    });
+    // Reload full list after bulk insert
+    const data = await apiFetch<PatientData[]>(API_BASE);
+    setPatients(data);
   };
 
-  const updatePatient = (patientId: string, updatedPatient: PatientData) => {
-    updateAndPersist((prev) =>
-      prev.map((patient) =>
-        patient.patientId === patientId ? updatedPatient : patient,
-      ),
+  const updatePatient = async (patientId: string, updated: PatientData) => {
+    const data = await apiFetch<PatientData>(`${API_BASE}/${patientId}`, {
+      method: "PUT",
+      body: JSON.stringify(updated),
+    });
+    setPatients((prev) =>
+      prev.map((p) => (p.patientId === patientId ? data : p)),
     );
   };
 
-  const deletePatient = (patientId: string) => {
-    updateAndPersist((prev) =>
-      prev.filter((patient) => patient.patientId !== patientId),
-    );
+  const deletePatient = async (patientId: string) => {
+    await apiFetch(`${API_BASE}/${patientId}`, { method: "DELETE" });
+    setPatients((prev) => prev.filter((p) => p.patientId !== patientId));
   };
 
-  const getPatient = (patientId: string) => {
-    return patients.find((patient) => patient.patientId === patientId);
-  };
+  const getPatient = (patientId: string) =>
+    patients.find((p) => p.patientId === patientId);
 
   return (
     <PatientContext.Provider
-      value={{ patients, addPatient, updatePatient, deletePatient, getPatient }}
+      value={{
+        patients,
+        loading,
+        error,
+        addPatient,
+        addPatientsBulk,
+        updatePatient,
+        deletePatient,
+        getPatient,
+      }}
     >
       {children}
     </PatientContext.Provider>
