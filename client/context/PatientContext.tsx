@@ -93,15 +93,42 @@ interface PatientContextType {
 
 const PatientContext = createContext<PatientContextType | undefined>(undefined);
 
+const STORAGE_KEY = "doctor_dashboard_patients";
+
+function loadPatients(): PatientData[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? (JSON.parse(stored) as PatientData[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePatients(patients: PatientData[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(patients));
+  } catch {
+    // Storage quota exceeded — fail silently
+  }
+}
+
 export function PatientProvider({ children }: { children: ReactNode }) {
-  const [patients, setPatients] = useState<PatientData[]>([]);
+  const [patients, setPatients] = useState<PatientData[]>(loadPatients);
+
+  const updateAndPersist = (updater: (prev: PatientData[]) => PatientData[]) => {
+    setPatients((prev) => {
+      const next = updater(prev);
+      savePatients(next);
+      return next;
+    });
+  };
 
   const addPatient = (patient: PatientData) => {
-    setPatients((prev) => [...prev, patient]);
+    updateAndPersist((prev) => [...prev, patient]);
   };
 
   const updatePatient = (patientId: string, updatedPatient: PatientData) => {
-    setPatients((prev) =>
+    updateAndPersist((prev) =>
       prev.map((patient) =>
         patient.patientId === patientId ? updatedPatient : patient,
       ),
@@ -109,7 +136,7 @@ export function PatientProvider({ children }: { children: ReactNode }) {
   };
 
   const deletePatient = (patientId: string) => {
-    setPatients((prev) =>
+    updateAndPersist((prev) =>
       prev.filter((patient) => patient.patientId !== patientId),
     );
   };

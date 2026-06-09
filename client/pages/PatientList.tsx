@@ -86,7 +86,10 @@ export default function PatientList() {
                     Manage and view all registered patients
                   </p>
                 </div>
-                <Button className="lg:w-auto w-full">
+                <Button
+                  className="lg:w-auto w-full"
+                  onClick={() => navigate("/")}
+                >
                   <Plus className="w-4 h-4 mr-2" />
                   Add Patient
                 </Button>

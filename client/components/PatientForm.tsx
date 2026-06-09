@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ import {
 export function PatientForm() {
   const navigate = useNavigate();
   const { addPatient } = usePatients();
+  const { toast } = useToast();
 
   const [formData, setFormData] = useState<
     Omit<PatientData, "familyComposition" | "createdAt" | "status">
@@ -92,8 +94,23 @@ export function PatientForm() {
     [],
   );
 
-  const updateFormData = (field: keyof typeof formData, value: any) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  const updateFormData = (
+    field: keyof typeof formData,
+    value: string | boolean,
+  ) => {
+    setFormData((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "height" || field === "weight") {
+        const h = parseFloat(field === "height" ? (value as string) : prev.height);
+        const w = parseFloat(field === "weight" ? (value as string) : prev.weight);
+        if (h > 0 && w > 0) {
+          next.bmi = (w / ((h / 100) * (h / 100))).toFixed(1);
+        } else {
+          next.bmi = "";
+        }
+      }
+      return next;
+    });
   };
 
   const addFamilyMember = () => {
@@ -146,8 +163,10 @@ export function PatientForm() {
 
     addPatient(patientData);
 
-    // Show success message and navigate to patient list
-    alert("Patient information saved successfully!");
+    toast({
+      title: "Patient saved",
+      description: `${patientData.patientName} has been registered successfully.`,
+    });
     navigate("/patients");
   };
 

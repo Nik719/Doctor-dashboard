@@ -102,8 +102,7 @@ export function Sidebar() {
               variant="ghost"
               className="w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               onClick={() => {
-                // Handle logout logic here
-                console.log("Logout clicked");
+                window.location.href = "/";
               }}
             >
               <LogOut size={20} />
