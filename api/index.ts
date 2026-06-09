@@ -3,9 +3,15 @@ import { connectDB } from "../server/db";
 
 const app = createServer();
 
-// Express apps are standard Node.js request listeners (req, res) — no serverless-http needed.
-// CJS bundling (via api/package.json) keeps require() available for Mongoose/dotenv internals.
 module.exports = async function handler(req: any, res: any) {
-  await connectDB();
+  try {
+    await connectDB();
+  } catch (err: any) {
+    console.error("DB connection failed:", err.message);
+    res.statusCode = 503;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ error: "Database unavailable", detail: err.message }));
+    return;
+  }
   app(req, res);
 };
