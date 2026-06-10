@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { PatientModel } from "../models/Patient";
+import { PatientModel } from "../models/Patient.js";
 
 export const patientsRouter = Router();
 
@@ -34,9 +34,15 @@ patientsRouter.post("/bulk", async (req, res) => {
     if (!Array.isArray(patients)) {
       return res.status(400).json({ error: "Body must be an array" });
     }
-    await PM.insertMany(patients, { ordered: false }).catch(() => null);
-    res.status(201).json({ inserted: patients.length });
-  } catch {
+    const result = await PM.insertMany(patients, { ordered: false })
+      .catch((err: { code?: number; insertedDocs?: unknown[] }) => {
+        // 11000 = duplicate key — keep what was inserted, ignore dupes
+        if (err.code === 11000) return err.insertedDocs ?? [];
+        throw err;
+      });
+    res.status(201).json({ inserted: result.length });
+  } catch (err) {
+    console.error("Bulk insert failed:", err);
     res.status(500).json({ error: "Failed to bulk insert patients" });
   }
 });

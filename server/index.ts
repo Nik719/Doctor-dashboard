@@ -2,8 +2,8 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
-import { handleDemo } from "./routes/demo";
-import { patientsRouter } from "./routes/patients";
+import { handleDemo } from "./routes/demo.js";
+import { patientsRouter } from "./routes/patients.js";
 
 export function createServer() {
   const app = express();

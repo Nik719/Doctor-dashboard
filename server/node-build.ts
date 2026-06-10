@@ -1,6 +1,11 @@
 import path from "path";
-import { createServer } from "./index";
+import { createServer } from "./index.js";
+import { connectDB } from "./db.js";
 import * as express from "express";
+
+connectDB().catch((err) =>
+  console.error("❌ MongoDB connection failed:", err.message),
+);
 
 const app = createServer();
 const port = process.env.PORT || 3000;
