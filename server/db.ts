@@ -1,8 +1,11 @@
 import mongoose from "mongoose";
 
 export async function connectDB(): Promise<void> {
-  // readyState 1 = connected — skip if already live
-  if (mongoose.connection.readyState === 1) return;
+  // 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+  // Skip if connected OR already in progress — calling connect() at state 2
+  // would fire a duplicate request during serverless cold starts
+  const state = mongoose.connection.readyState;
+  if (state === 1 || state === 2) return;
 
   const uri = process.env.MONGODB_URI;
   if (!uri) {
