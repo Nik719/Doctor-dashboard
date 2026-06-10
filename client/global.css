@@ -98,3 +98,10 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Hide chrome-only elements (theme toggle, action bars) when printing */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,7 +48,12 @@ function SectionIcon({ icon: Icon }: { icon: React.ElementType }) {
 
 export function PatientForm() {
   const navigate = useNavigate();
-  const { addPatient } = usePatients();
+  const {
+    addPatient,
+    updatePatient,
+    getPatient,
+    loading: patientsLoading,
+  } = usePatients();
   const { toast } = useToast();
 
   const [formData, setFormData] = useState<
@@ -108,6 +113,39 @@ export function PatientForm() {
     [],
   );
 
+  // ---- Edit mode: /register?edit=<patientId> prefills the form ----
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get("edit");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [originalMeta, setOriginalMeta] = useState<
+    Pick<PatientData, "createdAt" | "status"> | null
+  >(null);
+  const editLoaded = useRef(false);
+
+  useEffect(() => {
+    if (!editId || editLoaded.current || patientsLoading) return;
+    const patient = getPatient(editId);
+    if (!patient) {
+      toast({
+        title: "Patient not found",
+        description: `No patient with ID ${editId} exists.`,
+        variant: "destructive",
+      });
+      return;
+    }
+    const { familyComposition: fc, createdAt, status, ...rest } = patient;
+    setFormData(rest);
+    setFamilyComposition(fc ?? []);
+    setOriginalMeta({ createdAt, status });
+    setEditingId(editId);
+    editLoaded.current = true;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId, patientsLoading]);
+
+  // ---- Inline validation ----
+  const [errors, setErrors] = useState<{ patientName?: string }>({});
+  const patientNameRef = useRef<HTMLInputElement>(null);
+
   const updateFormData = (
     field: keyof typeof formData,
     value: string | boolean,
@@ -166,11 +204,12 @@ export function PatientForm() {
     if (saving) return;
 
     if (!formData.patientName.trim()) {
-      toast({
-        title: "Patient name required",
-        description: "Please enter the patient's full name before saving.",
-        variant: "destructive",
+      setErrors({ patientName: "Patient name is required." });
+      patientNameRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
       });
+      patientNameRef.current?.focus({ preventScroll: true });
       return;
     }
 
@@ -182,17 +221,25 @@ export function PatientForm() {
       ...formData,
       patientId: uniquePatientId,
       familyComposition,
-      createdAt: new Date().toISOString().split("T")[0],
-      status: "active",
+      createdAt: originalMeta?.createdAt ?? new Date().toISOString().split("T")[0],
+      status: originalMeta?.status ?? "active",
     };
 
     setSaving(true);
     try {
-      await addPatient(patientData);
-      toast({
-        title: "Patient saved",
-        description: `${patientData.patientName} has been registered successfully.`,
-      });
+      if (editingId) {
+        await updatePatient(editingId, patientData);
+        toast({
+          title: "Patient updated",
+          description: `${patientData.patientName}'s record has been updated.`,
+        });
+      } else {
+        await addPatient(patientData);
+        toast({
+          title: "Patient saved",
+          description: `${patientData.patientName} has been registered successfully.`,
+        });
+      }
       navigate("/patients");
     } catch (err: any) {
       toast({
@@ -429,14 +476,15 @@ export function PatientForm() {
   return (
     <div className="flex flex-col h-full">
       {/* Sticky action bar */}
-      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border px-6 py-3 flex items-center justify-between no-print">
+      <div className="sticky top-0 z-10 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-b border-border pl-6 pr-16 py-3 flex items-center justify-between no-print">
         <div>
           <h1 className="text-lg font-semibold text-foreground leading-tight">
-            Patient Registration
+            {editingId ? "Edit Patient" : "Patient Registration"}
           </h1>
           {formData.patientName ? (
             <p className="text-xs text-muted-foreground">
-              Registering: <span className="font-medium text-foreground">{formData.patientName}</span>
+              {editingId ? "Editing: " : "Registering: "}
+              <span className="font-medium text-foreground">{formData.patientName}</span>
             </p>
           ) : (
             <p className="text-xs text-muted-foreground">Fill in patient details below</p>
@@ -452,7 +500,7 @@ export function PatientForm() {
           </Button>
           <Button size="sm" onClick={handleSave} disabled={saving} className="flex items-center gap-1.5">
             <Save className="w-3.5 h-3.5" />
-            {saving ? "Saving…" : "Save Patient"}
+            {saving ? "Saving…" : editingId ? "Update Patient" : "Save Patient"}
           </Button>
         </div>
       </div>
@@ -481,13 +529,31 @@ export function PatientForm() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="patientName">Patient Name</Label>
+                  <Label htmlFor="patientName">
+                    Patient Name <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="patientName"
+                    ref={patientNameRef}
                     placeholder="Full name of patient"
                     value={formData.patientName}
-                    onChange={(e) => updateFormData("patientName", e.target.value)}
+                    aria-required="true"
+                    aria-invalid={!!errors.patientName}
+                    className={
+                      errors.patientName
+                        ? "border-destructive focus-visible:ring-destructive"
+                        : undefined
+                    }
+                    onChange={(e) => {
+                      updateFormData("patientName", e.target.value);
+                      if (errors.patientName) setErrors({});
+                    }}
                   />
+                  {errors.patientName && (
+                    <p className="text-xs text-destructive font-medium" role="alert">
+                      {errors.patientName}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="patientId">Patient ID</Label>
@@ -1338,7 +1404,11 @@ export function PatientForm() {
             </Button>
             <Button onClick={handleSave} size="lg" disabled={saving} className="flex items-center gap-2">
               <Save className="w-4 h-4" />
-              {saving ? "Saving…" : "Save Patient Information"}
+              {saving
+                ? "Saving…"
+                : editingId
+                  ? "Update Patient Information"
+                  : "Save Patient Information"}
             </Button>
           </div>
 

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
   Users,
+  UserPlus,
   Calendar,
   Settings,
   LogOut,
@@ -16,6 +17,7 @@ import {
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
+  { name: "Register Patient", href: "/register", icon: UserPlus },
   { name: "Patient List", href: "/patients", icon: Users },
   { name: "Calendar", href: "/calendar", icon: Calendar },
   { name: "Settings", href: "/settings", icon: Settings },

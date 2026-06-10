@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { usePatients } from "@/context/PatientContext";
 import { generateSeedPatients } from "@/lib/seedData";
 import {
@@ -24,10 +25,22 @@ import {
   Database,
 } from "lucide-react";
 
+type StatusFilter = "all" | "active" | "follow-up" | "completed";
+type SortKey = "date" | "name";
+
+const STATUS_FILTERS: { value: StatusFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "active", label: "Active" },
+  { value: "follow-up", label: "Follow-up" },
+  { value: "completed", label: "Completed" },
+];
+
 export default function PatientList() {
   const navigate = useNavigate();
   const { patients, loading, error, deletePatient, addPatientsBulk } = usePatients();
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [sortKey, setSortKey] = useState<SortKey>("date");
   const [currentPage, setCurrentPage] = useState(1);
   const [seeding, setSeeding] = useState(false);
   const itemsPerPage = 10;
@@ -53,15 +66,24 @@ export default function PatientList() {
     return patients.filter((p) => p.createdAt?.startsWith(prefix)).length;
   })();
 
-  const filteredPatients = patients.filter((patient) => {
-    const q = searchTerm.toLowerCase();
-    return (
-      patient.patientName.toLowerCase().includes(q) ||
-      patient.disease.toLowerCase().includes(q) ||
-      (patient.assignedDoctor ?? "").toLowerCase().includes(q) ||
-      `${patient.village}, ${patient.district}, ${patient.state}`.toLowerCase().includes(q)
+  const filteredPatients = patients
+    .filter((patient) => {
+      if (statusFilter !== "all" && patient.status !== statusFilter) {
+        return false;
+      }
+      const q = searchTerm.toLowerCase();
+      return (
+        patient.patientName.toLowerCase().includes(q) ||
+        patient.disease.toLowerCase().includes(q) ||
+        (patient.assignedDoctor ?? "").toLowerCase().includes(q) ||
+        `${patient.village}, ${patient.district}, ${patient.state}`.toLowerCase().includes(q)
+      );
+    })
+    .sort((a, b) =>
+      sortKey === "date"
+        ? (b.createdAt ?? "").localeCompare(a.createdAt ?? "")
+        : a.patientName.localeCompare(b.patientName),
     );
-  });
 
   const totalPages = Math.ceil(filteredPatients.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -75,16 +97,16 @@ export default function PatientList() {
       case "active":
         return <Badge className="bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 border font-medium">{status}</Badge>;
       case "follow-up":
-        return <Badge className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 border font-medium">Follow-up</Badge>;
+        return <Badge className="bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20 border font-medium">Follow-up</Badge>;
       case "completed":
-        return <Badge className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100 border font-medium">Completed</Badge>;
+        return <Badge className="bg-green-50 text-green-700 border-green-200 hover:bg-green-100 dark:bg-green-500/10 dark:text-green-400 dark:border-green-500/20 border font-medium">Completed</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
   };
 
   const handleEdit = (patientId: string) => {
-    navigate(`/?edit=${patientId}`);
+    navigate(`/register?edit=${patientId}`);
   };
 
   const handleDelete = (patientId: string, patientName: string) => {
@@ -101,7 +123,7 @@ export default function PatientList() {
           <div className="max-w-7xl mx-auto">
 
             {/* Header */}
-            <div className="mb-6">
+            <div className="mb-6 lg:pr-14">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
                   <h1 className="text-2xl font-bold text-foreground">Patient List</h1>
@@ -114,7 +136,7 @@ export default function PatientList() {
                     <Database className="w-4 h-4 mr-2" />
                     {seeding ? "Loading…" : "Load Demo Data"}
                   </Button>
-                  <Button onClick={() => navigate("/")}>
+                  <Button onClick={() => navigate("/register")}>
                     <Plus className="w-4 h-4 mr-2" />
                     Add Patient
                   </Button>
@@ -122,12 +144,7 @@ export default function PatientList() {
               </div>
             </div>
 
-            {/* Loading / error banner */}
-            {loading && (
-              <div className="mb-4 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground text-center">
-                Loading patients from database…
-              </div>
-            )}
+            {/* Error banner */}
             {error && (
               <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-sm text-destructive text-center">
                 ⚠ {error}
@@ -156,8 +173,8 @@ export default function PatientList() {
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Active</p>
                       <p className="text-2xl font-bold text-foreground mt-1">{activePatients}</p>
                     </div>
-                    <div className="w-9 h-9 rounded-lg bg-green-50 flex items-center justify-center">
-                      <UserCheck className="w-4 h-4 text-green-600" />
+                    <div className="w-9 h-9 rounded-lg bg-green-50 dark:bg-green-500/10 flex items-center justify-center">
+                      <UserCheck className="w-4 h-4 text-green-600 dark:text-green-400" />
                     </div>
                   </div>
                 </CardContent>
@@ -169,8 +186,8 @@ export default function PatientList() {
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Follow-up</p>
                       <p className="text-2xl font-bold text-foreground mt-1">{followUpPatients}</p>
                     </div>
-                    <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center">
-                      <Calendar className="w-4 h-4 text-amber-600" />
+                    <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center">
+                      <Calendar className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                     </div>
                   </div>
                 </CardContent>
@@ -214,11 +231,86 @@ export default function PatientList() {
                     />
                   </div>
                 </div>
+
+                {/* Status filter chips + sort */}
+                <div className="flex flex-wrap items-center gap-2 pt-3">
+                  {STATUS_FILTERS.map((f) => {
+                    const selected = statusFilter === f.value;
+                    const count =
+                      f.value === "all"
+                        ? patients.length
+                        : patients.filter((p) => p.status === f.value).length;
+                    return (
+                      <button
+                        key={f.value}
+                        type="button"
+                        aria-pressed={selected}
+                        onClick={() => {
+                          setStatusFilter(f.value);
+                          setCurrentPage(1);
+                        }}
+                        className={
+                          selected
+                            ? "rounded-full border border-primary bg-primary px-3 py-1 text-xs font-medium text-primary-foreground transition-colors"
+                            : "rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                        }
+                      >
+                        {f.label}
+                        <span className={selected ? "ml-1.5 opacity-80" : "ml-1.5 opacity-60"}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  <div className="ml-auto flex items-center gap-1 text-xs text-muted-foreground">
+                    <span className="mr-1">Sort:</span>
+                    <button
+                      type="button"
+                      onClick={() => setSortKey("date")}
+                      className={
+                        sortKey === "date"
+                          ? "rounded-md bg-muted px-2 py-1 font-medium text-foreground"
+                          : "rounded-md px-2 py-1 hover:bg-muted/60"
+                      }
+                    >
+                      Newest
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSortKey("name")}
+                      className={
+                        sortKey === "name"
+                          ? "rounded-md bg-muted px-2 py-1 font-medium text-foreground"
+                          : "rounded-md px-2 py-1 hover:bg-muted/60"
+                      }
+                    >
+                      Name A–Z
+                    </button>
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="p-0">
 
+                {/* Loading skeleton */}
+                {loading && (
+                  <div className="px-6 py-5 space-y-4">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-4">
+                        <Skeleton className="h-4 w-20" />
+                        <div className="flex-1 space-y-1.5">
+                          <Skeleton className="h-4 w-44" />
+                          <Skeleton className="h-3 w-28" />
+                        </div>
+                        <Skeleton className="hidden md:block h-4 w-40" />
+                        <Skeleton className="h-5 w-20 rounded-full" />
+                        <Skeleton className="h-8 w-24 rounded-md" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {/* Empty state */}
-                {filteredPatients.length === 0 && (
+                {!loading && filteredPatients.length === 0 && (
                   <div className="text-center py-16 px-6">
                     {searchTerm ? (
                       <>
@@ -240,7 +332,7 @@ export default function PatientList() {
                         <p className="text-sm text-muted-foreground max-w-xs mx-auto">
                           Register your first patient to start managing your patient list.
                         </p>
-                        <Button onClick={() => navigate("/")} className="mt-4">
+                        <Button onClick={() => navigate("/register")} className="mt-4">
                           <Plus className="w-4 h-4 mr-2" />
                           Add First Patient
                         </Button>
@@ -250,7 +342,7 @@ export default function PatientList() {
                 )}
 
                 {/* Desktop Table */}
-                {filteredPatients.length > 0 && (
+                {!loading && filteredPatients.length > 0 && (
                   <div className="hidden lg:block overflow-x-auto">
                     <table className="w-full">
                       <thead className="bg-muted/30 border-y border-border">
@@ -364,7 +456,7 @@ export default function PatientList() {
                 )}
 
                 {/* Mobile Cards */}
-                {filteredPatients.length > 0 && (
+                {!loading && filteredPatients.length > 0 && (
                   <div className="lg:hidden space-y-3 p-4">
                     {currentPatients.map((patient, index) => (
                       <Card
