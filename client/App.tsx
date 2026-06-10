@@ -9,6 +9,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { PatientProvider } from "@/context/PatientContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { ParticleBackground } from "@/components/ParticleBackground";
+import { CustomCursor } from "@/components/CustomCursor";
 import Dashboard from "./pages/Dashboard";
 import Index from "./pages/Index";
 import PatientList from "./pages/PatientList";
@@ -24,6 +26,8 @@ function App() {
       <ThemeProvider>
         <PatientProvider>
           <BrowserRouter>
+            <ParticleBackground />
+            <CustomCursor />
             <ThemeToggle />
             <Routes>
               <Route path="/" element={<Dashboard />} />

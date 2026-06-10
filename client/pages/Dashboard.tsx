@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InteractiveHeading } from "@/components/InteractiveHeading";
 import { usePatients, PatientData } from "@/context/PatientContext";
 import {
   Users,
@@ -108,16 +109,17 @@ export default function Dashboard() {
     .slice(0, 5);
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="relative z-10 flex h-screen">
       <Sidebar />
       <main className="flex-1 overflow-auto lg:ml-0">
         <div className="p-6 lg:p-8 pt-16 lg:pt-8">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-6 pr-12">
-              <h1 className="text-2xl font-bold text-foreground">
-                {getGreeting()}, Dr. Admin
-              </h1>
+              <InteractiveHeading
+                text={`${getGreeting()}, Dr. Admin`}
+                className="text-2xl font-bold text-foreground"
+              />
               <p className="text-muted-foreground mt-1 text-sm">
                 {new Date().toLocaleDateString(undefined, {
                   weekday: "long",

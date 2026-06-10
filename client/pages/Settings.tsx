@@ -4,7 +4,7 @@ import { Settings as SettingsIcon } from "lucide-react";
 
 export default function Settings() {
   return (
-    <div className="flex h-screen bg-background">
+    <div className="relative z-10 flex h-screen">
       <Sidebar />
       <main className="flex-1 overflow-auto lg:ml-0">
         <div className="p-6 lg:p-8 pt-16 lg:pt-8">

@@ -97,9 +97,108 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Ambient corner glows behind everything, like pritamsaha.in */
+  body {
+    background-image:
+      radial-gradient(900px 600px at 85% -10%, hsl(250 70% 88% / 0.45), transparent 60%),
+      radial-gradient(800px 550px at -10% 110%, hsl(197 71% 85% / 0.4), transparent 60%);
+    background-attachment: fixed;
+  }
+  .dark body {
+    background-image:
+      radial-gradient(900px 600px at 85% -10%, hsl(255 60% 30% / 0.22), transparent 60%),
+      radial-gradient(800px 550px at -10% 110%, hsl(197 71% 30% / 0.18), transparent 60%);
+  }
 }
 
-/* Hide chrome-only elements (theme toggle, action bars) when printing */
+/* ---------- Custom cursor (dot + trailing ring) ---------- */
+@media (pointer: fine) {
+  .custom-cursor,
+  .custom-cursor * {
+    cursor: none !important;
+  }
+  /* Text entry keeps the native I-beam — this is a data-entry app */
+  .custom-cursor input,
+  .custom-cursor textarea,
+  .custom-cursor select,
+  .custom-cursor [contenteditable="true"] {
+    cursor: auto !important;
+  }
+}
+
+.cursor-dot,
+.cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  pointer-events: none;
+  border-radius: 9999px;
+  opacity: 0;
+}
+.cursor-dot {
+  width: 7px;
+  height: 7px;
+  background: hsl(var(--primary));
+  transition: width 0.2s, height 0.2s, opacity 0.2s;
+}
+.cursor-dot--hover {
+  width: 4px;
+  height: 4px;
+}
+.cursor-ring {
+  width: 34px;
+  height: 34px;
+  border: 1.5px solid hsl(var(--primary) / 0.4);
+  transition:
+    width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    height 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.2s,
+    opacity 0.2s;
+}
+.cursor-ring--hover {
+  width: 52px;
+  height: 52px;
+  border-color: hsl(var(--primary) / 0.7);
+}
+.cursor-ring--down {
+  width: 26px;
+  height: 26px;
+}
+@media (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .cursor-dot,
+  .cursor-ring {
+    display: none;
+  }
+}
+
+/* ---------- Playful micro-interactions ---------- */
+@media (prefers-reduced-motion: no-preference) {
+  /* Cards lift toward the cursor on hover */
+  .rounded-xl.border.bg-card {
+    transition:
+      transform 0.2s ease-out,
+      box-shadow 0.2s ease-out,
+      border-color 0.2s ease-out;
+  }
+  .rounded-xl.border.bg-card:hover {
+    transform: translateY(-2px);
+    border-color: hsl(var(--primary) / 0.35);
+    box-shadow: 0 10px 30px -12px hsl(var(--primary) / 0.25);
+  }
+  /* Buttons give a small press response */
+  button:active {
+    transform: scale(0.97);
+  }
+  button {
+    transition-property: color, background-color, border-color, transform,
+      box-shadow, opacity;
+    transition-duration: 0.15s;
+  }
+}
+
+/* Hide chrome-only elements (theme toggle, cursor, canvas) when printing */
 @media print {
   .no-print {
     display: none !important;

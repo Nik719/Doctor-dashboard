@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InteractiveHeading } from "@/components/InteractiveHeading";
 import { usePatients } from "@/context/PatientContext";
 import { generateSeedPatients } from "@/lib/seedData";
 import {
@@ -116,7 +117,7 @@ export default function PatientList() {
   };
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="relative z-10 flex h-screen">
       <Sidebar />
       <main className="flex-1 overflow-auto lg:ml-0">
         <div className="p-6 lg:p-8 pt-16 lg:pt-8">
@@ -126,7 +127,10 @@ export default function PatientList() {
             <div className="mb-6 lg:pr-14">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                 <div>
-                  <h1 className="text-2xl font-bold text-foreground">Patient List</h1>
+                  <InteractiveHeading
+                    text="Patient List"
+                    className="text-2xl font-bold text-foreground"
+                  />
                   <p className="text-muted-foreground mt-1 text-sm">
                     Manage and view all registered patients
                   </p>
