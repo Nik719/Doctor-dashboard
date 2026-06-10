@@ -164,6 +164,16 @@ export function PatientForm() {
 
   const handleSave = async () => {
     if (saving) return;
+
+    if (!formData.patientName.trim()) {
+      toast({
+        title: "Patient name required",
+        description: "Please enter the patient's full name before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const uniquePatientId = !formData.patientId
       ? `PT${Date.now()}`
       : formData.patientId;

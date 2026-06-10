@@ -11,7 +11,8 @@ patientsRouter.get("/", async (_req, res) => {
   try {
     const patients = await PM.find({}).lean().exec();
     res.json(patients.map(strip));
-  } catch {
+  } catch (err) {
+    console.error("Fetch patients failed:", err);
     res.status(500).json({ error: "Failed to fetch patients" });
   }
 });
@@ -53,9 +54,14 @@ patientsRouter.post("/", async (req, res) => {
     const patient = await PM.create(req.body);
     res.status(201).json(strip(patient.toObject()));
   } catch (err: unknown) {
-    if ((err as { code?: number }).code === 11000) {
+    const e = err as { code?: number; name?: string; message?: string };
+    if (e.code === 11000) {
       return res.status(409).json({ error: "Patient ID already exists" });
     }
+    if (e.name === "ValidationError") {
+      return res.status(400).json({ error: e.message ?? "Invalid patient data" });
+    }
+    console.error("Create patient failed:", err);
     res.status(500).json({ error: "Failed to create patient" });
   }
 });
