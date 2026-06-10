@@ -206,48 +206,223 @@ export function PatientForm() {
   };
 
   const handlePrint = () => {
-    const printStyles = `
-      <style>
-        @media print {
-          body * { visibility: hidden; }
-          .print-content, .print-content * { visibility: visible; }
-          .print-content { position: absolute; left: 0; top: 0; width: 100%; }
-          .no-print { display: none !important; }
-          .page-break { page-break-before: always; }
-          .card { border: 1px solid #ccc; margin-bottom: 20px; break-inside: avoid; }
-          .card-header { background-color: #f5f5f5; padding: 10px; font-weight: bold; }
-          .card-content { padding: 15px; }
-          .grid { display: flex; flex-wrap: wrap; gap: 15px; }
-          .grid > div { flex: 1; min-width: 200px; }
-          table { width: 100%; border-collapse: collapse; }
-          th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-          th { background-color: #f5f5f5; }
-        }
-      </style>
-    `;
-    const formContent =
-      document.querySelector(".print-content")?.innerHTML || "";
+    const esc = (v: unknown) =>
+      String(v ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    const val = (v?: string) => (v && v.trim() ? esc(v) : "—");
+    const yesNo = (b: boolean) => (b ? "Yes" : "No");
+
+    const field = (label: string, value: string, span = false) => `
+      <div class="field${span ? " span-all" : ""}">
+        <div class="label">${label}</div>
+        <div class="value">${value}</div>
+      </div>`;
+
+    const section = (title: string, body: string, cols = 3) => `
+      <div class="card">
+        <div class="card-header">${title}</div>
+        <div class="grid cols-${cols}">${body}</div>
+      </div>`;
+
+    const familyRows = familyComposition
+      .map(
+        (m) => `
+        <tr>
+          <td>${val(m.name)}</td><td>${val(m.relation)}</td><td>${val(m.age)}</td>
+          <td>${val(m.sex)}</td><td>${val(m.occupation)}</td>
+          <td>${val(m.chronicDisease)}</td><td>${val(m.treatmentCompliance)}</td>
+        </tr>`,
+      )
+      .join("");
+
+    const familySection = familyComposition.length
+      ? `
+      <div class="card">
+        <div class="card-header">Family Composition</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Name</th><th>Relation</th><th>Age</th><th>Sex</th>
+              <th>Occupation</th><th>Chronic Disease</th><th>Compliance</th>
+            </tr></thead>
+            <tbody>${familyRows}</tbody>
+          </table>
+        </div>
+      </div>`
+      : "";
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Patient Information - ${esc(formData.patientName)}</title>
+<style>
+  :root {
+    --primary: hsl(197 71% 52%);
+    --fg: hsl(213 27% 23%);
+    --muted: hsl(210 23% 97%);
+    --muted-fg: hsl(213 19% 46%);
+    --border: hsl(213 20% 90%);
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--fg); background: hsl(249 100% 99%); margin: 0; padding: 28px;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .brand-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-bottom: 16px; margin-bottom: 20px; border-bottom: 2px solid var(--primary);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-logo {
+    width: 34px; height: 34px; border-radius: 9999px; background: var(--primary);
+    color: #fff; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 15px;
+  }
+  .brand-name { font-size: 17px; font-weight: 700; }
+  .brand-sub { font-size: 11px; color: var(--muted-fg); }
+  .meta { text-align: right; font-size: 12px; color: var(--muted-fg); }
+  .meta .patient { font-size: 14px; font-weight: 600; color: var(--fg); }
+  .card {
+    background: #fff; border: 1px solid var(--border); border-radius: 12px;
+    margin-bottom: 14px; overflow: hidden; break-inside: avoid;
+  }
+  .card-header {
+    background: var(--muted); border-bottom: 1px solid var(--border);
+    padding: 9px 16px; font-weight: 600; font-size: 13.5px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-header::before {
+    content: ""; width: 9px; height: 9px; border-radius: 9999px; background: var(--primary);
+  }
+  .grid { display: grid; gap: 12px 24px; padding: 14px 16px; }
+  .cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .span-all { grid-column: 1 / -1; }
+  .label { font-size: 10.5px; color: var(--muted-fg); margin-bottom: 2px; }
+  .value {
+    font-size: 13px; font-weight: 500; min-height: 18px;
+    border-bottom: 1px solid hsl(213 20% 93%); padding-bottom: 3px;
+  }
+  .table-wrap { padding: 12px 16px; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+  th { background: var(--muted); font-weight: 600; }
+  .footer { margin-top: 18px; font-size: 10.5px; color: var(--muted-fg); text-align: center; }
+  @media print {
+    body { background: #fff; padding: 0; }
+    @page { margin: 12mm; }
+  }
+</style>
+</head>
+<body>
+  <div class="brand-bar">
+    <div class="brand">
+      <div class="brand-logo">H</div>
+      <div>
+        <div class="brand-name">HealthCare</div>
+        <div class="brand-sub">Doctor Dashboard — Patient Information</div>
+      </div>
+    </div>
+    <div class="meta">
+      <div class="patient">${val(formData.patientName)}</div>
+      <div>Patient ID: ${val(formData.patientId)}</div>
+      <div>Generated on ${new Date().toLocaleDateString()}</div>
+    </div>
+  </div>
+
+  ${section(
+    "Family Details",
+    field("Head of Family", val(formData.headOfFamily)) +
+      field("Patient Name", val(formData.patientName)) +
+      field("Patient ID", val(formData.patientId)) +
+      field("Assigned Doctor", val(formData.assignedDoctor)),
+    2,
+  )}
+
+  ${section(
+    "Complete Address",
+    field("Country", val(formData.country)) +
+      field("State", val(formData.state)) +
+      field("District / City", val(formData.district)) +
+      field("Block", val(formData.block)) +
+      field("Village / Municipal", val(formData.village)) +
+      field("Location Type", val(formData.location)) +
+      field("Panchayat", val(formData.panchayat)) +
+      field("Ward No.", val(formData.wardNo)) +
+      field("Pin Code", val(formData.pinCode)),
+  )}
+
+  ${section(
+    "Health Seeking Behaviour",
+    field("Minor Illness Location", val(formData.minorIllnessLocation)) +
+      field("Major Illness Location", val(formData.majorIllnessLocation)) +
+      field("System of Medicine", val(formData.systemOfMedicine)) +
+      field("Family Members", val(formData.familyMembers)) +
+      field("Family Income", val(formData.familyIncome)) +
+      field("Family Type", val(formData.familyType)) +
+      field("Religion", val(formData.religion)) +
+      field("Caste", val(formData.caste)) +
+      field("Ration Card Type", val(formData.rationCardType)) +
+      field("Ayushman Card", yesNo(formData.ayushmanCard)),
+  )}
+
+  ${familySection}
+
+  ${section(
+    "Patient Disease Summary",
+    field("Disease", val(formData.disease)) +
+      field("Treatment Compliance", val(formData.treatmentCompliance)) +
+      field("Symptoms", val(formData.symptoms), true) +
+      field("Current Medication", val(formData.currentMedication), true) +
+      field("Disease Summary", val(formData.diseaseSummary), true),
+    2,
+  )}
+
+  ${section(
+    "Patient Personal Info",
+    field("Mobile", val(formData.mobile)) +
+      field("Height (cm)", val(formData.height)) +
+      field("Weight (kg)", val(formData.weight)) +
+      field("BMI", val(formData.bmi)) +
+      field("Education", val(formData.education)) +
+      field("Occupation", val(formData.occupation)) +
+      field("Marital Status", val(formData.maritalStatus)),
+  )}
+
+  ${section(
+    "Lifestyle & History",
+    field("Tobacco Use", yesNo(formData.tobacco)) +
+      field("Alcohol Use", yesNo(formData.alcohol)) +
+      field("Drug Addiction", val(formData.drugAddiction)) +
+      field("Family History", val(formData.familyHistory)) +
+      field("Other Chronic Diseases", val(formData.otherChronicDiseases)) +
+      field("Hospital History", val(formData.hospitalHistory)),
+  )}
+
+  ${section(
+    "Investigation",
+    field("Systolic BP", val(formData.systolicBP)) +
+      field("Diastolic BP", val(formData.diastolicBP)) +
+      field("BP Date", val(formData.bpDate)) +
+      field("Blood Sugar (RBS)", val(formData.bloodSugarRBS)) +
+      field("Blood Sugar (FBS)", val(formData.bloodSugarFBS)) +
+      field("Blood Sugar (PP)", val(formData.bloodSugarPP)),
+  )}
+
+  <div class="footer">Generated by HealthCare Doctor Dashboard</div>
+  <script>window.onload = function () { window.print(); };</script>
+</body>
+</html>`;
+
     const printWindow = window.open("", "_blank");
     if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Patient Information - ${formData.patientName}</title>
-            ${printStyles}
-          </head>
-          <body>
-            <div class="print-content">
-              <h1>Patient Information Form</h1>
-              <p><strong>Generated on:</strong> ${new Date().toLocaleDateString()}</p>
-              ${formContent}
-            </div>
-          </body>
-        </html>
-      `);
+      printWindow.document.write(html);
       printWindow.document.close();
       printWindow.focus();
-      printWindow.print();
-      printWindow.close();
     }
   };
 
