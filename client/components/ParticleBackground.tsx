@@ -51,15 +51,15 @@ export function ParticleBackground() {
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       const count = Math.min(
-        90,
-        Math.floor((canvas.width * canvas.height) / 22000),
+        170,
+        Math.floor((canvas.width * canvas.height) / 11000),
       );
       particles = Array.from({ length: count }, () => ({
         x: Math.random() * canvas.width,
         y: Math.random() * canvas.height,
-        vx: (Math.random() - 0.5) * 0.35,
-        vy: (Math.random() - 0.5) * 0.35,
-        r: Math.random() * 1.6 + 0.8,
+        vx: (Math.random() - 0.5) * 0.8,
+        vy: (Math.random() - 0.5) * 0.8,
+        r: Math.random() * 1.8 + 1,
       }));
     };
 
@@ -74,7 +74,10 @@ export function ParticleBackground() {
 
     const tick = () => {
       const { dot, line } = colors();
+      ctx.globalCompositeOperation = "source-over";
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Additive blending in dark mode: overlapping halos brighten like light
+      ctx.globalCompositeOperation = isDark ? "lighter" : "source-over";
 
       for (const p of particles) {
         // Gentle attraction toward the cursor
@@ -82,23 +85,29 @@ export function ParticleBackground() {
         const dym = mouse.y - p.y;
         const dm = Math.hypot(dxm, dym);
         if (dm < MOUSE_DIST && dm > 0.001) {
-          p.vx += (dxm / dm) * 0.012;
-          p.vy += (dym / dm) * 0.012;
+          p.vx += (dxm / dm) * 0.025;
+          p.vy += (dym / dm) * 0.025;
         }
-        // Speed cap keeps things calm
+        // Speed cap keeps things from going wild
         const speed = Math.hypot(p.vx, p.vy);
-        if (speed > 0.6) {
-          p.vx = (p.vx / speed) * 0.6;
-          p.vy = (p.vy / speed) * 0.6;
+        if (speed > 1.2) {
+          p.vx = (p.vx / speed) * 1.2;
+          p.vy = (p.vy / speed) * 1.2;
         }
         p.x += p.vx;
         p.y += p.vy;
         if (p.x < 0 || p.x > canvas.width) p.vx *= -1;
         if (p.y < 0 || p.y > canvas.height) p.vy *= -1;
 
+        // Soft glow halo behind each dot
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r * 4, 0, Math.PI * 2);
+        ctx.fillStyle = `${dot}${isDark ? 0.1 : 0.07})`;
+        ctx.fill();
+        // Bright core
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-        ctx.fillStyle = `${dot}${isDark ? 0.55 : 0.4})`;
+        ctx.fillStyle = `${dot}${isDark ? 0.85 : 0.6})`;
         ctx.fill();
       }
 
