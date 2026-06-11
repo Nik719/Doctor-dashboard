@@ -31,7 +31,7 @@ export function ParticleBackground() {
     }[] = [];
     const mouse = { x: -9999, y: -9999 };
     const LINK_DIST = 110;
-    const MOUSE_DIST = 160;
+    const MOUSE_DIST = 240; // wider reach = more sensitive to the mouse
 
     let isDark = document.documentElement.classList.contains("dark");
     const observer = new MutationObserver(() => {
@@ -42,10 +42,11 @@ export function ParticleBackground() {
       attributeFilter: ["class"],
     });
 
+    // Red atoms/particles: bright red cores with warm crimson link lines
     const colors = () =>
       isDark
-        ? { dot: "rgba(86, 189, 232,", line: "rgba(140, 130, 250," }
-        : { dot: "rgba(45, 140, 190,", line: "rgba(120, 110, 220," };
+        ? { dot: "rgba(255, 70, 70,", line: "rgba(255, 100, 90," }
+        : { dot: "rgba(220, 38, 38,", line: "rgba(200, 50, 60," };
 
     const resize = () => {
       canvas.width = window.innerWidth;
@@ -85,14 +86,16 @@ export function ParticleBackground() {
         const dym = mouse.y - p.y;
         const dm = Math.hypot(dxm, dym);
         if (dm < MOUSE_DIST && dm > 0.001) {
-          p.vx += (dxm / dm) * 0.025;
-          p.vy += (dym / dm) * 0.025;
+          // Stronger pull the closer the particle is to the cursor
+          const pull = 0.06 * (1 - dm / MOUSE_DIST) + 0.02;
+          p.vx += (dxm / dm) * pull;
+          p.vy += (dym / dm) * pull;
         }
         // Speed cap keeps things from going wild
         const speed = Math.hypot(p.vx, p.vy);
-        if (speed > 1.2) {
-          p.vx = (p.vx / speed) * 1.2;
-          p.vy = (p.vy / speed) * 1.2;
+        if (speed > 1.6) {
+          p.vx = (p.vx / speed) * 1.6;
+          p.vy = (p.vy / speed) * 1.6;
         }
         p.x += p.vx;
         p.y += p.vy;
